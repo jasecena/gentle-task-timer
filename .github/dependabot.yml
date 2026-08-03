@@ -15,6 +15,30 @@ updates:
       - dependency-name: 'react'
       - dependency-name: 'react-native'
       - dependency-name: 'react-native-*'
+      # The dev toolchain is pinned by the SDK just as tightly as the runtime
+      # above, only less obviously. Each of these majors was tested against
+      # `npm run verify` and breaks the build on SDK 57:
+      #
+      #   jest 30      jest-expo needs jest-environment-jsdom@^29; a v30 runtime
+      #                on a v29 environment fails every suite with
+      #                "clearMocksOnScope is not a function"
+      #   eslint 10    eslint-config-expo bundles an eslint-plugin-react for v9
+      #   typescript 7 eslint-config-expo bundles an @typescript-eslint for TS 6
+      #   @babel/* 8   needs peer @babel/core@^8; babel-preset-expo pins 7.x,
+      #                so npm install fails with ERESOLVE
+      #
+      # Minor and patch updates still flow. Drop these entries as part of the
+      # SDK 58 upgrade and let the majors land together with it.
+      - dependency-name: 'jest'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/jest'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@babel/*'
+        update-types: ['version-update:semver-major']
     groups:
       dev-tooling:
         patterns: ['eslint*', 'prettier*', 'jest*', '@testing-library/*', '@types/*', 'typescript']
