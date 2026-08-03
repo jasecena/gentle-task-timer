@@ -296,7 +296,48 @@ jobs:
             echo "See docs/DEPLOYMENT.md for how to create each one."
             exit 1
           fi
-          echo "All required configuration is present."
+
+          # Present but not real. A non-empty test alone passes a placeholder
+          # straight through to signing, where the failure is far less obvious.
+          placeholder=()
+          for pair in \
+            "vars.IOS_BUNDLE_IDENTIFIER:${IOS_BUNDLE_IDENTIFIER}" \
+            "vars.APPLE_TEAM_ID:${APPLE_TEAM_ID}" \
+            "secrets.APP_STORE_CONNECT_KEY_ID:${ASC_KEY_ID}" \
+            "secrets.APP_STORE_CONNECT_ISSUER_ID:${ASC_ISSUER_ID}" \
+            "secrets.APP_STORE_CONNECT_PRIVATE_KEY:${ASC_PRIVATE_KEY}"; do
+            name="${pair%%:*}"; value="${pair#*:}"
+            shopt -s nocasematch
+            if [[ "$value" =~ ^(replace_me|changeme|change_me|todo|tbd|xxx+)$ ]]; then
+              placeholder+=("$name")
+            fi
+            shopt -u nocasematch
+          done
+          if (( ${#placeholder[@]} )); then
+            echo "::error::Placeholder values still set: ${placeholder[*]}"
+            exit 1
+          fi
+
+          # Shape checks. These are cheap here and expensive later: a swapped
+          # Issuer ID and Key ID is the most common cause of a first-run 401,
+          # and it only surfaces after the archive step has already run.
+          # Values are matched, never echoed.
+          malformed=()
+          [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] \
+            || malformed+=("vars.APPLE_TEAM_ID (expected 10 alphanumerics)")
+          [[ "$IOS_BUNDLE_IDENTIFIER" =~ ^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$ ]] \
+            || malformed+=("vars.IOS_BUNDLE_IDENTIFIER (expected reverse-DNS)")
+          [[ "$ASC_KEY_ID" =~ ^[A-Z0-9]{10}$ ]] \
+            || malformed+=("secrets.APP_STORE_CONNECT_KEY_ID (expected 10 alphanumerics — did you paste the Issuer ID?)")
+          [[ "$ASC_ISSUER_ID" =~ ^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$ ]] \
+            || malformed+=("secrets.APP_STORE_CONNECT_ISSUER_ID (expected a UUID — did you paste the Key ID?)")
+          if (( ${#malformed[@]} )); then
+            echo "::error::Malformed configuration:"
+            printf '  %s\n' "${malformed[@]}"
+            exit 1
+          fi
+
+          echo "All required configuration is present and well-formed."
 
       - name: Select Xcode
         run: |

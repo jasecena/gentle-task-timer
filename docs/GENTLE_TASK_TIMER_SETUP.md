@@ -7,15 +7,12 @@ Repository visibility: **public**.
 
 **Remaining before a release can succeed:**
 
-1. Real values for the three `ios-release` secrets (Phase 4) — currently
-   `REPLACE_ME`. The preflight check only tests for non-empty, so a placeholder
-   passes it and the run fails later at signing.
-2. App ID registered (Phase 2) and App Store Connect app record created
-   (Phase 3) — neither is verifiable from this repository, so both stay
-   unticked until confirmed by hand.
-3. Dry run with `submit_to_testflight` unchecked (Phase 6).
+1. Dry run with `submit_to_testflight` unchecked (Phase 6), then the real
+   upload.
 
-The app icon (Phase 0) blocks App Store review but not TestFlight.
+Everything else is in place. The release job now refuses to start on a
+placeholder or a malformed identifier, so a misconfigured credential fails in
+seconds rather than after the archive step.
 
 ---
 
@@ -24,8 +21,8 @@ The app icon (Phase 0) blocks App Store review but not TestFlight.
 - [x] Set your git identity — commits author as the GitHub noreply address
 - [x] Confirm `LICENSE` credits you — `Copyright (c) 2026 Jason`
 - [x] Set your bundle identifier in `.env` (gitignored)
-- [ ] Replace `assets/icon.png` (1024×1024, RGB, no alpha) — **still the Expo
-      placeholder.** TestFlight accepts it; App Store review will not
+- [x] Replace `assets/icon.png` (1024×1024, RGB, no alpha) — progress ring in
+      the app's own palette. `assets/splash-icon.png` matches it
 - [x] Verify — `npm run verify` green, 86 tests, `expo-doctor` 20/20
 
 ---
@@ -40,20 +37,20 @@ The app icon (Phase 0) blocks App Store review but not TestFlight.
 
 ## Phase 2 — Developer portal
 
-- [ ] <https://developer.apple.com/account/resources/identifiers/list> → **+** →
+- [x] <https://developer.apple.com/account/resources/identifiers/list> → **+** →
       App IDs → App → **Explicit**:
 
 ```
 com.<yourname>.lifetimer
 ```
 
-- [ ] Capabilities: enable nothing.
+- [x] Capabilities: enable nothing.
 
 ---
 
 ## Phase 3 — App Store Connect
 
-- [ ] Apps → **+** → New App:
+- [x] Apps → **+** → New App:
 
 ```
 Platform:          iOS
@@ -74,9 +71,6 @@ Role:  App Manager
 
 - [x] Download the `.p8` (one download only) and record the **Key ID**
       (10 characters) and the **Issuer ID** (UUID, from the top of the Keys page).
-
-> Key rotation in progress — the original `.p8` was created before the secrets
-> were rescoped. Set the new values in Phase 4 before running a release.
 
 ---
 
@@ -104,9 +98,7 @@ APPLE_TEAM_ID            (value from .env)
 > `main` is also permitted, which is what lets the Phase 6 dry run reach the
 > credentials via **Run workflow**. Remove it once releases are tag-driven.
 
-- [ ] `ios-release` → **Environment secrets** → Add secret, three times.
-      **Currently `REPLACE_ME` placeholders — a release will fail until these
-      hold real values:**
+- [x] `ios-release` → **Environment secrets** → Add secret, three times:
 
 ```
 APP_STORE_CONNECT_KEY_ID         10-char key id (it is in the .p8 filename)
@@ -122,7 +114,7 @@ gh secret set APP_STORE_CONNECT_ISSUER_ID   --env ios-release --body '<issuer uu
 gh secret set APP_STORE_CONNECT_PRIVATE_KEY --env ios-release < AuthKey_XXXXXXXXXX.p8
 ```
 
-- [ ] Confirm three are listed, and that none leaked to repository level:
+- [x] Confirm three are listed, and that none leaked to repository level:
 
 ```bash
 gh secret list --env ios-release
@@ -143,9 +135,9 @@ shred -u AuthKey_XXXXXXXXXX.p8
 - [x] Add repository description and topics (`ios`, `react-native`, `expo`,
       `github-actions`, `testflight`).
 
-- [x] Branch protection on `main` — pull request required, 5 required status
-      checks, up-to-date branches, force push and deletion blocked, **enforced
-      for admins**. Relax in an emergency with:
+- [x] Branch protection on `main` — pull request required, 6 required status
+      checks (including `CodeQL`), up-to-date branches, force push and deletion
+      blocked, **enforced for admins**. Relax in an emergency with:
 
 ```bash
 gh api -X DELETE repos/:owner/:repo/branches/main/protection/enforce_admins
@@ -161,7 +153,7 @@ gh api -X DELETE repos/:owner/:repo/branches/main/protection/enforce_admins
 
 - [x] `.env` created locally
 - [x] `IOS_BUNDLE_IDENTIFIER` in `.env` matches the repository variable
-- [ ] Real app icon in place
+- [x] Real app icon in place
 
 ---
 
