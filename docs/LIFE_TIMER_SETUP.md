@@ -210,26 +210,31 @@ wl-copy < AuthKey_XXXXXXXXXX.p8                      # Wayland
 
 - [ ] Delete your local `.p8` once it is in GitHub
 
-### Public-repo hardening — before the first release
+### Public-repo hardening
 
-- [ ] Create the **`ios-release` environment** — Settings → Environments → New
-  - [ ] Move the three `APP_STORE_CONNECT_*` secrets into it
-  - [ ] Deployment branches and tags → **Selected** → add rule `v*`
-  - [ ] Optionally add yourself as a required reviewer
+All of this is **already applied** to <https://github.com/jasecena/life-timer>.
+Listed so you can verify it, and so the next project knows what to replicate.
 
-  This is the main control keeping your signing key away from pull requests
-  opened by strangers — a live concern now the repo is public.
+- [x] **`ios-release` environment created**, with deployment restricted to the
+      `main` branch and `v*` tags only. This is the main control keeping the
+      App Store Connect key away from pull requests opened by strangers — fork
+      PRs never run on `main`, so they can never reach it
+- [x] **Secret scanning enabled**
+- [x] **Push protection enabled** — blocks a credential at `git push`, before it
+      is ever published. The one control that prevents the mistake you cannot
+      undo
+- [x] **Dependabot security updates enabled**
+- [x] **Fork PR workflow permissions** confirmed read-only, and workflows cannot
+      approve their own pull requests
+- [x] Repository description and topics set
 
-- [ ] Settings → Actions → General → **Fork pull request workflows**: confirm
-      "Require approval for first-time contributors" (the default)
+Still yours to do, once you have the credentials:
 
-- [ ] Settings → Code security → enable **Secret scanning** and **Push
-      protection**. Free on public repos, and the single best protection against
-      the one mistake that cannot be undone
-
-- [ ] Add a repository description and topics (`ios`, `react-native`, `expo`,
-      `github-actions`, `testflight`) — the pipeline is the part others will
-      find useful
+- [ ] Add the three `APP_STORE_CONNECT_*` secrets **to the `ios-release`
+      environment** (Settings → Environments → ios-release → Add secret) rather
+      than at repository level — tighter scoping
+- [ ] Optionally add yourself as a **required reviewer** on that environment, so
+      a release pauses for approval before anything reaches Apple
 
 ### Already handled in the code
 
