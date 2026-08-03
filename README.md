@@ -58,6 +58,7 @@ v0.4.1 is the current release. Scope:
 - [x] Named timer, work duration (30s minimum), repeat count, optional rest
 - [x] Start / pause / resume / reset, per timer
 - [x] Per-phase and whole-run progress
+- [x] Optional alert when a rest ends — off by default, on for sets and reps
 - [x] Runs survive force-quitting the app, and come back where they should be
 - [x] Screen stays awake while any is running, releases when the last stops
 - [x] Correct across backgrounding, JS stalls and wall-clock changes
@@ -114,7 +115,7 @@ machine.
 
 ```bash
 npm run verify     # typecheck + lint + format check + tests. Run before pushing.
-npm test           # 317 tests, ~7s
+npm test           # 338 tests, ~7s
 npm run test:watch
 ```
 

@@ -70,6 +70,8 @@ export interface AlertPlanInput {
   readonly soundId: string;
   /** How long that voice rings for, in ms. */
   readonly ringMs: number;
+  /** Whether a rest phase ending should alert at all. See `TimerConfig.restEndAlert`. */
+  readonly restEndAlert: boolean;
   /**
    * Epoch ms corresponding to elapsed time zero for the current run, i.e.
    * `lastResumedAt - accumulatedMs`. Pauses move it forward, which is exactly
@@ -135,6 +137,7 @@ export function planAlerts({
   name,
   soundId,
   ringMs,
+  restEndAlert,
   runStartedAtMs,
   elapsedMs,
   limit = MAX_PENDING_ALERTS,
@@ -146,6 +149,10 @@ export function planAlerts({
 
   for (const phase of schedule.phases) {
     if (phase.endOffsetMs <= from) continue;
+    // A rest ending is the one boundary that is opt-in. Skipped here rather than filtered
+    // afterwards, so the run's share of the notification budget is spent on boundaries that
+    // will actually fire — skipping later would leave gaps a re-plan could not reuse.
+    if (phase.kind === 'rest' && !restEndAlert) continue;
     if (alerts.length >= limit) break;
 
     alerts.push({

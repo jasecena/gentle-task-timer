@@ -48,4 +48,6 @@ export interface OneOffSlot {
   readonly body: string;
   readonly soundId: string;
   readonly ringMs: number;
+  /** How long the phone buzzes if it arrives with the app open, in ms. */
+  readonly vibrationMs: number;
 }

@@ -72,6 +72,7 @@ export function planOneOff(oneoff: OneOff): OneOffSlot {
     body: `${dayName(oneoff.weekday)} ${formatClock(oneoff.minuteOfDay)}`,
     soundId: oneoff.soundId,
     ringMs: oneoff.ringMs,
+    vibrationMs: oneoff.vibrationMs,
   };
 }
 

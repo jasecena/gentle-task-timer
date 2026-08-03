@@ -58,6 +58,20 @@ export interface TimerConfig {
    * voice — the system sound has one length and the silent entry has none.
    */
   readonly ringMs: number;
+  /**
+   * Whether the end of a *rest* phase alerts.
+   *
+   * Off by default, which is the surprising-sounding half of this setting and the right one.
+   * The alert that matters is the one telling you to stop working; being told a rest is over
+   * is only useful if you were going to act on it immediately, which is a training pattern
+   * rather than the general case. Left on, it means a buzz every time you settle.
+   *
+   * Turn it on for sets and reps, where "rest is over, go again" is the whole point.
+   *
+   * Note this governs the *rest-end* boundary only. Work-end and run-end always alert — a
+   * timer that can be configured to never tell you anything is not a timer.
+   */
+  readonly restEndAlert: boolean;
 }
 
 /**

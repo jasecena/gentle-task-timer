@@ -28,7 +28,13 @@ const config = (overrides: Partial<TimerConfig> = {}): TimerConfig => ({ ...DEFA
  * every "no rest" fixture a 3s rest and shift every expected time.
  */
 function running(id: string, overrides: Partial<TimerConfig> = {}): TimerRun {
-  return { id, state: start(createRun(id, config({ vibrationMs: 0, soundId: 'silent', ...overrides })).state, T0) };
+  return {
+    id,
+    state: start(
+      createRun(id, config({ vibrationMs: 0, soundId: 'silent', restEndAlert: true, ...overrides })).state,
+      T0,
+    ),
+  };
 }
 
 describe('nextRunId', () => {

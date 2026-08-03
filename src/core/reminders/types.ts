@@ -57,4 +57,6 @@ export interface ReminderSlot {
   readonly soundId: string;
   /** How long it rings for, in ms. */
   readonly ringMs: number;
+  /** How long the phone buzzes if it arrives with the app open, in ms. */
+  readonly vibrationMs: number;
 }

@@ -181,6 +181,7 @@ describe('planOneOff', () => {
       body: 'Thursday 15:00',
       soundId: 'bell',
       ringMs: 1_500,
+      vibrationMs: 3_000,
     });
   });
 

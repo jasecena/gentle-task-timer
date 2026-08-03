@@ -12,6 +12,9 @@ const POMODORO: TimerConfig = {
   vibrationMs: 3_000,
   soundId: 'chime',
   ringMs: 1_500,
+  // These tests are about boundary placement and copy, so they opt in to the rest-end
+  // alert; its default-off behaviour has tests of its own below.
+  restEndAlert: true,
 };
 
 function plan(config: TimerConfig, elapsedMs = 0, limit?: number) {
@@ -21,6 +24,7 @@ function plan(config: TimerConfig, elapsedMs = 0, limit?: number) {
     name: config.name,
     soundId: config.soundId,
     ringMs: config.ringMs,
+    restEndAlert: config.restEndAlert,
     runStartedAtMs: RUN_START,
     elapsedMs,
     limit,
@@ -130,6 +134,7 @@ describe('planAlerts', () => {
         name: 'Timer',
         soundId: 'default',
         ringMs: 1_500,
+        restEndAlert: true,
         runStartedAtMs: Number.NaN,
         elapsedMs: 0,
       }),
@@ -146,12 +151,66 @@ describe('planAlerts', () => {
       name: 'Other',
       soundId: 'default',
       ringMs: 1_500,
+      restEndAlert: true,
       runStartedAtMs: RUN_START,
       elapsedMs: 0,
     }).map((alert) => alert.key);
 
     expect(first[0]).toBe('run-t1-phase-0');
     expect(new Set([...first, ...second]).size).toBe(first.length + second.length);
+  });
+
+  describe('the rest-end alert', () => {
+    /**
+     * The boundary a training user wants and everyone else finds surprising: rest is over,
+     * go again. Off by default, so the timer tells you to stop working and nothing else.
+     */
+    it('is skipped by default, leaving work-end and run-end intact', () => {
+      const alerts = plan({ ...POMODORO, restEndAlert: false });
+
+      expect(alerts.map((alert) => alert.kind)).toEqual(['rest-start', 'rest-start', 'run-end']);
+      // Every remaining alert ends a work phase — nothing announces a rest ending.
+      expect(alerts.map((alert) => alert.phaseIndex)).toEqual([0, 2, 4]);
+    });
+
+    it('fires when switched on', () => {
+      const alerts = plan({ ...POMODORO, restEndAlert: true });
+
+      expect(alerts.map((alert) => alert.kind)).toEqual([
+        'rest-start',
+        'work-start',
+        'rest-start',
+        'work-start',
+        'run-end',
+      ]);
+    });
+
+    it('never silences the end of the run, however it is set', () => {
+      // A timer that can be configured to never tell you anything is not a timer.
+      for (const restEndAlert of [true, false]) {
+        const alerts = plan({ ...POMODORO, restEndAlert });
+        expect(alerts.at(-1)!.kind).toBe('run-end');
+      }
+    });
+
+    it('changes nothing for a run with no rest phases', () => {
+      const withRest = plan({ ...POMODORO, restDurationMs: 0, restEndAlert: true });
+      const without = plan({ ...POMODORO, restDurationMs: 0, restEndAlert: false });
+
+      expect(without).toEqual(withRest);
+    });
+
+    /**
+     * Skipping is done while planning rather than by filtering afterwards, so the budget is
+     * spent on boundaries that will actually fire. Filtering later would leave holes a
+     * re-plan could not reuse.
+     */
+    it('spends the budget only on boundaries that will fire', () => {
+      const alerts = plan({ ...POMODORO, repeats: 999, restEndAlert: false }, 0, 10);
+
+      expect(alerts).toHaveLength(10);
+      expect(alerts.every((alert) => alert.kind !== 'work-start')).toBe(true);
+    });
   });
 
   it('carries the run id and its chosen voice onto every alert', () => {

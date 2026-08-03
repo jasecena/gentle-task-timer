@@ -73,12 +73,14 @@ describe('validateConfig', () => {
       vibrationMs: 50,
       soundId: 'nope',
       ringMs: 4_321,
+      restEndAlert: 'yes' as unknown as boolean,
     });
 
     expect(issues.map((i) => i.field).sort()).toEqual([
       'name',
       'repeats',
       'restDurationMs',
+      'restEndAlert',
       'ringMs',
       'soundId',
       'vibrationMs',

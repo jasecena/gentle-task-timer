@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { AlertRows, type AlertSettings } from '@/components/AlertRows';
 import { StepperRow } from '@/components/StepperRow';
+import { ToggleRow } from '@/components/ToggleRow';
 import { alertDurationMs, restFloorMs } from '@/core/alerts';
 import { LIMITS, formatDurationLabel, normalizeConfig, type TimerConfig } from '@/core/timer';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -70,6 +71,20 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
         duration can, which is why those lock.
       */}
       <AlertRows settings={config} onChange={(patch: Partial<AlertSettings>) => update(patch)} />
+
+      {/*
+        Only offered when there are rests to end. With rest set to None the setting has
+        nothing to govern, and a control that visibly does nothing is worse than one that
+        is not there.
+      */}
+      {config.restDurationMs > 0 ? (
+        <ToggleRow
+          label="Alert when rest ends"
+          hint="Off by default. On for sets and reps, where the point is to go again."
+          value={config.restEndAlert}
+          onChange={(restEndAlert: boolean) => update({ restEndAlert })}
+        />
+      ) : null}
     </View>
   );
 }

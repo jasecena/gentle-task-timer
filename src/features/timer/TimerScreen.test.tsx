@@ -328,6 +328,79 @@ describe('several timers at once', () => {
   });
 });
 
+describe('the rest-end alert', () => {
+  /**
+   * The reported behaviour: a buzz when rest finished, which is wanted for sets and reps and
+   * surprising otherwise. Now opt-in, and the two paths to that boundary — the in-app buzz and
+   * the scheduled notification — are silenced together. Silencing one would leave the phone
+   * buzzing whenever the app happened to be open.
+   */
+  it('does not buzz when a rest ends, by default', async () => {
+    const vibrate = jest.spyOn(Vibration, 'vibrate').mockImplementation(() => {});
+    await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await advance(120_000); // work ends — this one still buzzes
+    expect(vibrate).toHaveBeenCalled();
+
+    vibrate.mockClear();
+    await advance(30_000); // rest ends — this one should not
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it('buzzes at the end of a rest once switched on', async () => {
+    const vibrate = jest.spyOn(Vibration, 'vibrate').mockImplementation(() => {});
+    await renderScreen();
+    await openSettings(A);
+
+    await fireEvent(screen.getByLabelText('Alert when rest ends'), 'valueChange', true);
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await advance(120_000);
+
+    vibrate.mockClear();
+    await advance(30_000);
+    expect(vibrate).toHaveBeenCalled();
+  });
+
+  it('schedules no rest-end notification by default', async () => {
+    await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await act(async () => {});
+
+    // Three of the five boundaries: two work-ends and the run-end.
+    const pending = notifications.__pending('run');
+    expect(pending).toHaveLength(3);
+    expect(pending.every((r) => !String(r.content.body).startsWith('Back to work'))).toBe(true);
+  });
+
+  it('schedules all five once switched on', async () => {
+    await renderScreen();
+    await openSettings(A);
+
+    await fireEvent(screen.getByLabelText('Alert when rest ends'), 'valueChange', true);
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await act(async () => {});
+
+    expect(notifications.__pending('run')).toHaveLength(5);
+  });
+
+  it('is not offered when there is no rest to end', async () => {
+    await renderScreen();
+    await openSettings(A);
+
+    // Reaching None needs no alert at all: with a 3s buzz the rest floor holds rest at 3s.
+    await fireEvent.press(screen.getByLabelText('Decrease Vibration'));
+    await fireEvent.press(screen.getByLabelText('Decrease Vibration'));
+    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Silent
+    await fireEvent.press(screen.getByLabelText('Decrease Rest'));
+    await fireEvent.press(screen.getByLabelText('Decrease Rest'));
+    expect(screen.getByLabelText('Rest: None')).toBeOnTheScreen();
+
+    expect(screen.queryByLabelText('Alert when rest ends')).not.toBeOnTheScreen();
+  });
+});
+
 describe('notifications', () => {
   it('hands the run to the OS as local notifications when started', async () => {
     await renderScreen();
@@ -336,8 +409,8 @@ describe('notifications', () => {
     await fireEvent.press(screen.getByLabelText(`Start ${A}`));
     await act(async () => {});
 
-    // Five boundaries: 3 work + 2 rest, the last of which ends the run.
-    expect(notifications.__pending('run')).toHaveLength(5);
+    // Three boundaries, not five: the two rest-end alerts are opt-in and off by default.
+    expect(notifications.__pending('run')).toHaveLength(3);
     expect(screen.queryByText(/Notifications are off/)).not.toBeOnTheScreen();
   });
 
@@ -358,9 +431,9 @@ describe('notifications', () => {
     const pending = notifications.__pending('run');
     const titles = new Set(pending.map((request) => request.content.title));
 
-    expect(pending).toHaveLength(10);
+    expect(pending).toHaveLength(6); // three apiece; rest-end is off by default
     expect(titles).toEqual(new Set([A, B]));
-    expect(new Set(pending.map((request) => request.identifier)).size).toBe(10);
+    expect(new Set(pending.map((request) => request.identifier)).size).toBe(6);
   });
 
   it('cancels a timers alerts when it is stopped, leaving the other timers alone', async () => {
@@ -375,7 +448,7 @@ describe('notifications', () => {
 
     const pending = notifications.__pending('run');
 
-    expect(pending).toHaveLength(5);
+    expect(pending).toHaveLength(3);
     expect(pending.every((request) => request.content.title === A)).toBe(true);
   });
 

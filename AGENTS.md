@@ -23,7 +23,7 @@ trigger repaints.
 not off a per-frame "did it hit zero?" check, which misses every boundary that
 passes while the app is suspended.
 
-**Run `npm run verify` before finishing.** Typecheck, lint, format check and 317
+**Run `npm run verify` before finishing.** Typecheck, lint, format check and 338
 tests, in well under a minute.
 
 **Refs may not be read during render.** `react-hooks/refs` is an error, not a
@@ -114,6 +114,24 @@ rather than hand-editing `assets/sounds/*.wav`. Synthesised means no licence and
 nothing to declare at App Review. An unknown sound id falls back to the system
 sound in `normalizeSoundId`, because iOS delivers a notification whose sound
 file it cannot resolve **silently** — which reads as a broken alert.
+
+**Every alert path needs its vibration wired separately.** A run buzzes from the engine, off
+elapsed-time windows in `onPhaseEnd`. A schedule alert and a one-off note buzz from
+`useArrivalVibration`, which listens for the notification arriving. Those are the only two
+paths, and adding a third feature means wiring one of them — v0.4 shipped a vibration setting
+on two tabs that was stored, displayed and never read, because the sound rides on the
+notification and iOS plays it while a _buzz_ needs JavaScript to drive a train. Do not vibrate
+for the `run` tag in the listener: the engine path already covers it and fires even when the
+notification is suppressed.
+
+**The vibration length travels on the notification, in `data`.** A schedule alert may fire days
+after it was armed, so the handler cannot look the setting up on arrival — the length that was
+chosen then is the one that applies.
+
+**The rest-end alert is opt-in (`restEndAlert`, default off).** Being told a rest is over is a
+training pattern, not the general case, and left on it means a buzz every time you settle. It
+must be skipped in _both_ paths — the notification plan and the in-app buzz — and skipped
+while planning rather than filtered afterwards, so the budget is spent on boundaries that fire.
 
 **Vibration length is a train of fixed pulses, foreground only.** iOS has no
 "vibrate for N seconds" API and RN ignores pattern durations on iOS, honouring

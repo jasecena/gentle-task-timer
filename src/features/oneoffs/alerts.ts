@@ -36,7 +36,7 @@ function toRequest(slot: OneOffSlot): Notifications.NotificationRequestInput {
       body: slot.body,
       sound: isSilentSound(slot.soundId) ? undefined : (soundFileFor(slot.soundId, slot.ringMs) ?? 'default'),
       interruptionLevel: 'active',
-      data: { tag: ALERT_TAGS.oneoff, oneOffId: slot.oneOffId },
+      data: { tag: ALERT_TAGS.oneoff, oneOffId: slot.oneOffId, vibrationMs: slot.vibrationMs },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.CALENDAR,

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { countReminderSlots } from '@/core/reminders';
+import { useArrivalVibration } from '@/features/alerts/useArrivalVibration';
 import { OneOffsScreen } from '@/features/oneoffs/OneOffsScreen';
 import { useOneOffs } from '@/features/oneoffs/hooks/useOneOffs';
 import { RemindersScreen } from '@/features/reminders/RemindersScreen';
@@ -37,6 +38,10 @@ const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] 
  */
 export function TabShell() {
   const [tab, setTab] = useState<Tab>('timer');
+
+  // Mounted once, here, rather than per screen: a schedule alert should buzz whichever tab
+  // you happen to be looking at, and two listeners would buzz twice.
+  useArrivalVibration();
 
   const reminders = useReminders();
   const reminderSlots = reminders.config.enabled ? countReminderSlots(reminders.config) : 0;
