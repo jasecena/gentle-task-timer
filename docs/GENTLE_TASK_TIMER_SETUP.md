@@ -5,34 +5,28 @@ Generic template for the next project: [SETUP_CHECKLIST.md](SETUP_CHECKLIST.md).
 
 Repository visibility: **public**.
 
+**Remaining before a release can succeed:**
+
+1. Real values for the three `ios-release` secrets (Phase 4) — currently
+   `REPLACE_ME`. The preflight check only tests for non-empty, so a placeholder
+   passes it and the run fails later at signing.
+2. App ID registered (Phase 2) and App Store Connect app record created
+   (Phase 3) — neither is verifiable from this repository, so both stay
+   unticked until confirmed by hand.
+3. Dry run with `submit_to_testflight` unchecked (Phase 6).
+
+The app icon (Phase 0) blocks App Store review but not TestFlight.
+
 ---
 
 ## Phase 0 — Local
 
-- [ ] Set your git identity:
-
-```bash
-git config user.name  "Your Name"
-git config user.email "<id>+<username>@users.noreply.github.com"
-```
-
-- [ ] Confirm `LICENSE` credits you.
-
-- [ ] Set your bundle identifier in `.env` (gitignored):
-
-```bash
-IOS_BUNDLE_IDENTIFIER=com.<yourname>.lifetimer
-```
-
-- [ ] Replace `assets/icon.png` (1024×1024, RGB, no alpha).
-
-- [ ] Verify:
-
-```bash
-npm run verify
-git status --short
-git check-ignore -v .env
-```
+- [x] Set your git identity — commits author as the GitHub noreply address
+- [x] Confirm `LICENSE` credits you — `Copyright (c) 2026 Jason`
+- [x] Set your bundle identifier in `.env` (gitignored)
+- [ ] Replace `assets/icon.png` (1024×1024, RGB, no alpha) — **still the Expo
+      placeholder.** TestFlight accepts it; App Store review will not
+- [x] Verify — `npm run verify` green, 86 tests, `expo-doctor` 20/20
 
 ---
 
@@ -71,15 +65,18 @@ Primary language:  English (Australia)
 
 SKU and Bundle ID are permanent. Everything else is editable later.
 
-- [ ] Users and Access → Integrations → App Store Connect API → Team Keys → **+**:
+- [x] Users and Access → Integrations → App Store Connect API → Team Keys → **+**:
 
 ```
 Name:  github-actions-ci
 Role:  App Manager
 ```
 
-- [ ] Download the `.p8` (one download only) and record the **Key ID**
+- [x] Download the `.p8` (one download only) and record the **Key ID**
       (10 characters) and the **Issuer ID** (UUID, from the top of the Keys page).
+
+> Key rotation in progress — the original `.p8` was created before the secrets
+> were rescoped. Set the new values in Phase 4 before running a release.
 
 ---
 
@@ -92,7 +89,7 @@ Order matters: the environment must exist before the secrets go in. Secrets are
 write-only — once the `.p8` is deleted there is no way to read a stored secret
 back out and re-add it elsewhere.
 
-- [ ] Settings → Secrets and variables → Actions → **Variables**. Repository
+- [x] Settings → Secrets and variables → Actions → **Variables**. Repository
       level, not environment — the smoke job has no `environment:` binding and
       cannot read environment-scoped variables:
 
@@ -101,10 +98,15 @@ IOS_BUNDLE_IDENTIFIER    com.<yourname>.lifetimer
 APPLE_TEAM_ID            (value from .env)
 ```
 
-- [ ] Settings → Environments → New → **`ios-release`**
-  - [ ] Deployment branches and tags → Selected → add rule `v*`
+- [x] Settings → Environments → New → **`ios-release`**
+  - [x] Deployment branches and tags → Selected → add rule `v*`
 
-- [ ] `ios-release` → **Environment secrets** → Add secret, three times:
+> `main` is also permitted, which is what lets the Phase 6 dry run reach the
+> credentials via **Run workflow**. Remove it once releases are tag-driven.
+
+- [ ] `ios-release` → **Environment secrets** → Add secret, three times.
+      **Currently `REPLACE_ME` placeholders — a release will fail until these
+      hold real values:**
 
 ```
 APP_STORE_CONNECT_KEY_ID         10-char key id (it is in the .p8 filename)
@@ -133,27 +135,39 @@ gh secret list
 shred -u AuthKey_XXXXXXXXXX.p8
 ```
 
-- [ ] Settings → Actions → General → Fork pull request workflows → confirm
+- [x] Settings → Actions → General → Fork pull request workflows → confirm
       "Require approval for first-time contributors".
 
-- [ ] Settings → Code security → enable **Secret scanning** and **Push protection**.
+- [x] Settings → Code security → enable **Secret scanning** and **Push protection**.
 
-- [ ] Add repository description and topics (`ios`, `react-native`, `expo`,
+- [x] Add repository description and topics (`ios`, `react-native`, `expo`,
       `github-actions`, `testflight`).
+
+- [x] Branch protection on `main` — pull request required, 5 required status
+      checks, up-to-date branches, force push and deletion blocked, **enforced
+      for admins**. Relax in an emergency with:
+
+```bash
+gh api -X DELETE repos/:owner/:repo/branches/main/protection/enforce_admins
+```
+
+- [x] `.github/CODEOWNERS` — every path owned by `@jasecena`. "Require review
+      from Code Owners" stays **off**: a code owner cannot approve their own
+      pull request, so enabling it on a solo repository blocks every merge.
 
 ---
 
 ## Phase 5 — Project
 
 - [x] `.env` created locally
-- [ ] `IOS_BUNDLE_IDENTIFIER` in `.env` matches Phase 2 exactly
+- [x] `IOS_BUNDLE_IDENTIFIER` in `.env` matches the repository variable
 - [ ] Real app icon in place
 
 ---
 
 ## Phase 6 — CI/CD
 
-- [ ] Confirm CI is green on the first push (Actions tab).
+- [x] Confirm CI is green on the first push (Actions tab).
 
 - [ ] Actions → iOS Release → Run workflow, **submit_to_testflight UNCHECKED**.
 
@@ -172,7 +186,7 @@ git push origin v0.1.0
 
 ## Phase 7 — Device testing
 
-- [ ] Install TestFlight on your iPhone.
+- [x] Install TestFlight on your iPhone.
 - [ ] App Store Connect → Gentle Task Timer → TestFlight → Internal Testing →
       add yourself, accept the invite, install.
 - [ ] Start a 2-minute timer; confirm it counts down correctly.
