@@ -251,11 +251,20 @@ directory and skips prebuild rather than clobbering it.
   Zustand would be pure ceremony at this size. The schedule's and the notes'
   state are lifted into the shell only because the timers need to know how many
   notification slots they have left.
-- **No `expo-audio` for alert sounds.** A foreground-only sound player was the
-  way to get custom sounds without the entitlement, and it would have been the
-  right answer if the entitlement were unacceptable. It is not: a sound played
-  from JavaScript cannot reach you with the app closed, which is precisely when
-  an alert matters most.
+- **No `expo-audio` in the alert path.** It is a dependency, but only
+  `services/soundPreview.ts` uses it, and only to audition a voice in the
+  picker. Alerts are never played by the app: the sound rides on the
+  notification and iOS plays it, which is the only thing that works with the app
+  closed. Routing alerts through the app would also mean the app and the
+  notification playing over each other.
+- **Neither new dependency's config plugin is installed.** `expo-audio`'s writes
+  `NSMicrophoneUsageDescription` and `UIBackgroundModes` — a microphone
+  permission string for an app that only plays audio, which is exactly the
+  speculative entitlement this project refuses. `datetimepicker`'s is
+  `withAndroidStyles`, on an iOS-only app. Both work without them.
+- **No gesture library for swipe-to-delete.** `react-native-gesture-handler`
+  would be smoother under load, but this is one short horizontal drag on a list
+  of at most eight rows, and `PanResponder` is already in React Native.
 
 ## Three modes, one engine each
 
@@ -363,6 +372,41 @@ app's behaviour or its network surface changed, which is the argument for the
 trade being an acceptable one — and the reason `SECURITY.md` now says "one
 entitlement, no remote push" rather than "no capability at all".
 
+### Ring length is a file, not a timer
+
+"Ring for ten seconds" sounds like something the app does and is not. With the
+app closed there is no JavaScript running to do it, exactly as with vibration.
+What _is_ available is that a custom notification sound may be up to 30 seconds
+and iOS plays it to the end — so a long ring is simply a longer file. Each voice
+ships twice, `chime.wav` and `chime-10s.wav`, and the setting picks which
+filename the notification carries.
+
+That has two consequences worth stating plainly, because they are the platform's
+and not the app's:
+
+- **It cannot be stopped early.** Once iOS starts a notification sound, nothing
+  the app can do will cut it short. Ten seconds was chosen over the 30-second
+  maximum for exactly this reason: an alert you cannot silence stops being a
+  feature somewhere well before half a minute.
+- **Repeat notifications are not an alternative.** Stacking three alerts to fake
+  a longer ring costs three times the budget and leaves a pile of banners — the
+  same objection that ruled it out for vibration.
+
+### Silent, and the half of it the app cannot promise
+
+`Silent` is an entry in the sound list rather than an absence of one, and the
+notification it produces omits the `sound` key entirely — not `'default'`, not a
+filename. Where it does what it says:
+
+|              | Sound | Vibration                         |
+| ------------ | ----- | --------------------------------- |
+| App in front | none  | the app's own train, exact        |
+| App closed   | none  | **the user's Ring/Silent switch** |
+
+iOS gives an app no way to request a vibration without a sound, so with the app
+closed the buzz is the device's decision. The UI says so where the setting is,
+rather than implying a guarantee that would quietly not hold.
+
 Two smaller decisions inside it:
 
 - **The voices are synthesised**, by `scripts/make-alert-sounds.py` — additive
@@ -402,6 +446,32 @@ A schedule that would exceed its allowance is **refused, with the number shown**
 ("85 alerts a week. iPhone allows 48"). Silently scheduling 48 of 85 would look
 like it worked, right up until the afternoon alerts stopped. Notes are refused
 the same way, at the same point: before anything is scheduled.
+
+### Frequently asked: can the 64 be avoided?
+
+Short answer: no, and the reasons are worth writing down because the question
+recurs.
+
+- **The limit is on _pending_ notifications**, not delivered ones. A slot frees
+  itself the moment its alert fires. What costs a slot is scheduling.
+- **Nothing raises it.** No entitlement, capability or API. Schedule a 65th and
+  iOS discards the overflow without an error.
+- **Being on screen does not exempt you.** The app schedules ahead precisely
+  because it cannot rely on still being alive at the boundary — iOS can suspend
+  it at any moment — so a running timer holds slots whether or not anyone is
+  looking.
+- **"Just make a sound from the background without a notification" is not a
+  thing.** A backgrounded app runs no JavaScript: it cannot play a sound, start
+  a vibration, or decide anything. The only escape is a **background audio
+  session** (`UIBackgroundModes: ['audio']`), which keeps the app alive and
+  therefore needs no notifications and no budget at all. The cost is holding an
+  audio session open continuously, usually by playing silence — battery, and an
+  App Review conversation for an app that is not a media player. It stays on the
+  list of things that could be done, not things that have been.
+
+What is left is spending less: fewer repeats, longer phases, fewer timers at
+once, a wider schedule interval, fewer pending notes. The live counter on the
+Schedule tab exists so that is visible before it bites.
 
 ### Round-robin, not chronological
 

@@ -1,5 +1,5 @@
 import { REMINDER_BUDGET } from '../alerts/budget';
-import { DEFAULT_SOUND_ID, normalizeSoundId } from '../alerts/sound';
+import { DEFAULT_SOUND_ID, normalizeRingMs, normalizeSoundId, RING_LIMITS } from '../alerts/sound';
 import { normalizeVibrationMs, VIBRATION_LIMITS } from '../alerts/vibration';
 import { clampMinute, isWeekday, MINUTES_PER_DAY, sortDays } from '../clock';
 import { countReminderSlots } from './plan';
@@ -26,6 +26,7 @@ export const DEFAULT_REMINDER_CONFIG: ReminderConfig = {
   days: [1, 2, 3, 4, 5],
   vibrationMs: 3_000,
   soundId: DEFAULT_SOUND_ID,
+  ringMs: RING_LIMITS.SHORT_MS,
 };
 
 export interface ReminderIssue {
@@ -67,6 +68,10 @@ export function validateReminderConfig(config: ReminderConfig): ReminderIssue[] 
 
   if (normalizeSoundId(config.soundId) !== config.soundId) {
     issues.push({ field: 'soundId', message: 'Unknown alert sound.' });
+  }
+
+  if (normalizeRingMs(config.ringMs) !== config.ringMs) {
+    issues.push({ field: 'ringMs', message: 'Ring length must be one of the offered options.' });
   }
 
   const slots = countReminderSlots(config);
@@ -113,5 +118,6 @@ export function normalizeReminderConfig(config: Partial<ReminderConfig> | null |
     days: sortDays(Array.isArray(source.days) ? source.days.filter(isWeekday) : DEFAULT_REMINDER_CONFIG.days),
     vibrationMs: normalizeVibrationMs(source.vibrationMs ?? DEFAULT_REMINDER_CONFIG.vibrationMs),
     soundId: normalizeSoundId(source.soundId),
+    ringMs: normalizeRingMs(source.ringMs ?? DEFAULT_REMINDER_CONFIG.ringMs),
   };
 }

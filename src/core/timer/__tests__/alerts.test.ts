@@ -11,6 +11,7 @@ const POMODORO: TimerConfig = {
   repeats: 3,
   vibrationMs: 3_000,
   soundId: 'chime',
+  ringMs: 1_500,
 };
 
 function plan(config: TimerConfig, elapsedMs = 0, limit?: number) {
@@ -19,6 +20,7 @@ function plan(config: TimerConfig, elapsedMs = 0, limit?: number) {
     runId: 't1',
     name: config.name,
     soundId: config.soundId,
+    ringMs: config.ringMs,
     runStartedAtMs: RUN_START,
     elapsedMs,
     limit,
@@ -127,6 +129,7 @@ describe('planAlerts', () => {
         runId: 't1',
         name: 'Timer',
         soundId: 'default',
+        ringMs: 1_500,
         runStartedAtMs: Number.NaN,
         elapsedMs: 0,
       }),
@@ -142,6 +145,7 @@ describe('planAlerts', () => {
       runId: 't2',
       name: 'Other',
       soundId: 'default',
+      ringMs: 1_500,
       runStartedAtMs: RUN_START,
       elapsedMs: 0,
     }).map((alert) => alert.key);

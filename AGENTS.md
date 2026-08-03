@@ -23,8 +23,13 @@ trigger repaints.
 not off a per-frame "did it hit zero?" check, which misses every boundary that
 passes while the app is suspended.
 
-**Run `npm run verify` before finishing.** Typecheck, lint, format check and 291
+**Run `npm run verify` before finishing.** Typecheck, lint, format check and 317
 tests, in well under a minute.
+
+**Refs may not be read during render.** `react-hooks/refs` is an error, not a
+warning. A value the render depends on goes in `useState` — including an
+`Animated.Value`, which belongs in lazily-initialised state (`useState(() => new
+Animated.Value(0))`) rather than a ref. `SwipeToDelete` is the worked example.
 
 **Never commit credentials.** `.gitignore` blocks the relevant patterns and
 gitleaks scans history in CI, but the rule is simply: Apple credentials live

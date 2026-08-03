@@ -11,6 +11,7 @@ const config = (overrides: Partial<TimerConfig> = {}): TimerConfig => ({
   repeats: 3,
   vibrationMs: 3_000,
   soundId: 'default',
+  ringMs: 1_500,
   ...overrides,
 });
 

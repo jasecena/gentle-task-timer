@@ -1,21 +1,15 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { AlertRows, type AlertSettings } from '@/components/AlertRows';
 import { StepperRow } from '@/components/StepperRow';
-import {
-  canStepSound,
-  formatSoundLabel,
-  formatVibrationLabel,
-  stepSoundId,
-  stepVibrationMs,
-  VIBRATION_LIMITS,
-} from '@/core/alerts';
+import { alertDurationMs } from '@/core/alerts';
 import { LIMITS, formatDurationLabel, normalizeConfig, type TimerConfig } from '@/core/timer';
-import { spacing } from '@/theme/tokens';
+import { colors, spacing, typography } from '@/theme/tokens';
 
 interface Props {
   config: TimerConfig;
   onChange: (config: TimerConfig) => void;
-  /** Editing mid-run would invalidate the schedule the run is following, so the controls lock while running. */
+  /** Editing mid-run would invalidate the schedule the run is following, so the durations lock while running. */
   disabled: boolean;
 }
 
@@ -28,6 +22,11 @@ const REST_STEP_MS = 15_000;
  */
 export function ConfigEditor({ config, onChange, disabled }: Props) {
   const update = (patch: Partial<TimerConfig>) => onChange(normalizeConfig({ ...config, ...patch }));
+
+  // The floor `normalizeConfig` applies, surfaced so a rest that refuses to go
+  // lower explains itself rather than looking broken.
+  const alertMs = alertDurationMs(config);
+  const restPinned = config.restDurationMs > 0 && config.restDurationMs <= alertMs;
 
   return (
     <View style={styles.container}>
@@ -49,6 +48,12 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
         canDecrement={config.restDurationMs > LIMITS.MIN_REST_MS}
         canIncrement={config.restDurationMs < LIMITS.MAX_REST_MS}
       />
+      {restPinned ? (
+        <Text style={styles.note}>
+          Rest is held at {formatDurationLabel(alertMs)} to match the alert. A rest shorter than the alert announcing it
+          is not a rest — the noise would still be going when the next work phase starts.
+        </Text>
+      ) : null}
       <StepperRow
         label="Repeats"
         value={`${config.repeats}`}
@@ -58,31 +63,18 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
         canDecrement={config.repeats > LIMITS.MIN_REPEATS}
         canIncrement={config.repeats < LIMITS.MAX_REPEATS}
       />
+
       {/*
-        Both editable mid-run, unlike the durations: changing how long the phone
-        buzzes, or what it plays, cannot invalidate a timeline the run is
-        already following. Editing a duration can, which is why those lock.
+        Editable mid-run, unlike the durations: changing how the alert sounds
+        cannot invalidate a timeline the run is already following. Changing a
+        duration can, which is why those lock.
       */}
-      <StepperRow
-        label="Vibration"
-        value={formatVibrationLabel(config.vibrationMs)}
-        onDecrement={() => update({ vibrationMs: stepVibrationMs(config.vibrationMs, -1) })}
-        onIncrement={() => update({ vibrationMs: stepVibrationMs(config.vibrationMs, 1) })}
-        canDecrement={config.vibrationMs > VIBRATION_LIMITS.OFF_MS}
-        canIncrement={config.vibrationMs < VIBRATION_LIMITS.MAX_MS}
-      />
-      <StepperRow
-        label="Sound"
-        value={formatSoundLabel(config.soundId)}
-        onDecrement={() => update({ soundId: stepSoundId(config.soundId, -1) })}
-        onIncrement={() => update({ soundId: stepSoundId(config.soundId, 1) })}
-        canDecrement={canStepSound(config.soundId, -1)}
-        canIncrement={canStepSound(config.soundId, 1)}
-      />
+      <AlertRows settings={config} onChange={(patch: Partial<AlertSettings>) => update(patch)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { width: '100%', gap: spacing.sm },
+  note: { ...typography.caption, color: colors.textMuted },
 });

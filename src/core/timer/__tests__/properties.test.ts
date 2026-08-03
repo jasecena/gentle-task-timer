@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 
-import { ALERT_SOUNDS } from '../../alerts/sound';
+import { ALERT_SOUNDS, RING_OPTIONS } from '../../alerts/sound';
 
 import { LIMITS, normalizeConfig, validateConfig } from '../config';
 import { formatDuration, fromParts, toParts } from '../format';
@@ -36,6 +36,7 @@ const arbConfig = (maxRepeats = 20): fc.Arbitrary<TimerConfig> =>
     // Likewise the voice: it changes what an alert sounds like and nothing
     // about when one happens.
     soundId: fc.constantFrom(...ALERT_SOUNDS.map((sound) => sound.id)),
+    ringMs: fc.constantFrom(...RING_OPTIONS),
   });
 
 describe('schedule invariants', () => {

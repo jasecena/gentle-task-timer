@@ -1,26 +1,18 @@
 import { StyleSheet, View } from 'react-native';
 
+import { AlertRows, type AlertSettings } from '@/components/AlertRows';
 import { DayRow } from '@/components/DayRow';
 import { StepperRow } from '@/components/StepperRow';
+import { TimeField } from '@/components/TimeField';
+import { sortDays } from '@/core/clock';
 import {
-  canStepSound,
-  formatSoundLabel,
-  formatVibrationLabel,
-  stepSoundId,
-  stepVibrationMs,
-  VIBRATION_LIMITS,
-} from '@/core/alerts';
-import {
-  clampMinute,
-  formatClock,
-  MINUTES_PER_DAY,
   normalizeReminderConfig,
   REMINDER_LIMITS,
+  type MinuteOfDay,
   type ReminderConfig,
   type Weekday,
 } from '@/core/reminders';
 import { formatDurationLabel } from '@/core/timer';
-import { sortDays } from '@/core/clock';
 import { spacing } from '@/theme/tokens';
 
 interface Props {
@@ -28,9 +20,6 @@ interface Props {
   onChange: (config: ReminderConfig) => void;
   disabled?: boolean;
 }
-
-/** Fifteen minutes: fine enough to say "quarter past", coarse enough to reach 9am in a few presses. */
-const TIME_STEP_MINUTES = 15;
 
 /**
  * The intervals offered, in minutes.
@@ -76,44 +65,25 @@ export function ScheduleEditor({ config, onChange, disabled = false }: Props) {
         canDecrement={config.intervalMs > REMINDER_LIMITS.MIN_INTERVAL_MS}
         canIncrement={config.intervalMs < REMINDER_LIMITS.MAX_INTERVAL_MS}
       />
-      <StepperRow
+      {/*
+        Both ends get a picker, not just the start. Half a form on wheels and
+        half on steppers would be a stranger thing to explain than either.
+        `normalizeReminderConfig` still pins an end before the start.
+      */}
+      <TimeField
         label="From"
-        value={formatClock(config.startMinute)}
+        minuteOfDay={config.startMinute}
         disabled={disabled}
-        onDecrement={() => update({ startMinute: clampMinute(config.startMinute - TIME_STEP_MINUTES) })}
-        onIncrement={() => update({ startMinute: clampMinute(config.startMinute + TIME_STEP_MINUTES) })}
-        canDecrement={config.startMinute > 0}
-        canIncrement={config.startMinute < MINUTES_PER_DAY - 1}
+        onChange={(startMinute: MinuteOfDay) => update({ startMinute })}
       />
-      <StepperRow
+      <TimeField
         label="Until"
-        value={formatClock(config.endMinute)}
+        minuteOfDay={config.endMinute}
         disabled={disabled}
-        onDecrement={() => update({ endMinute: clampMinute(config.endMinute - TIME_STEP_MINUTES) })}
-        onIncrement={() => update({ endMinute: clampMinute(config.endMinute + TIME_STEP_MINUTES) })}
-        // The window cannot close before it opens; normalizeReminderConfig would
-        // pin it back anyway, and a dead button says so before the press.
-        canDecrement={config.endMinute > config.startMinute}
-        canIncrement={config.endMinute < MINUTES_PER_DAY - 1}
+        onChange={(endMinute: MinuteOfDay) => update({ endMinute })}
       />
-      <StepperRow
-        label="Vibration"
-        value={formatVibrationLabel(config.vibrationMs)}
-        disabled={disabled}
-        onDecrement={() => update({ vibrationMs: stepVibrationMs(config.vibrationMs, -1) })}
-        onIncrement={() => update({ vibrationMs: stepVibrationMs(config.vibrationMs, 1) })}
-        canDecrement={config.vibrationMs > VIBRATION_LIMITS.OFF_MS}
-        canIncrement={config.vibrationMs < VIBRATION_LIMITS.MAX_MS}
-      />
-      <StepperRow
-        label="Sound"
-        value={formatSoundLabel(config.soundId)}
-        disabled={disabled}
-        onDecrement={() => update({ soundId: stepSoundId(config.soundId, -1) })}
-        onIncrement={() => update({ soundId: stepSoundId(config.soundId, 1) })}
-        canDecrement={canStepSound(config.soundId, -1)}
-        canIncrement={canStepSound(config.soundId, 1)}
-      />
+
+      <AlertRows settings={config} disabled={disabled} onChange={(patch: Partial<AlertSettings>) => update(patch)} />
 
       {/* A press toggles the day in the set — a schedule runs on any number of days. */}
       <DayRow

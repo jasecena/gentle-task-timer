@@ -73,6 +73,7 @@ describe('normalizeOneOff', () => {
       weekday: DEFAULT_ONEOFF.weekday,
       minuteOfDay: 0,
       soundId: 'default',
+      ringMs: 1_500,
       vibrationMs: 0,
     });
   });
@@ -179,6 +180,7 @@ describe('planOneOff', () => {
       title: 'Call the dentist',
       body: 'Thursday 15:00',
       soundId: 'bell',
+      ringMs: 1_500,
     });
   });
 

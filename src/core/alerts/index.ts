@@ -6,14 +6,27 @@ export { MAX_RUN_ALERTS, NOTIFICATION_LIMIT, ONEOFF_BUDGET, REMINDER_BUDGET, run
 
 export {
   ALERT_SOUNDS,
+  canStepRing,
   canStepSound,
   DEFAULT_SOUND_ID,
+  formatRingLabel,
   formatSoundLabel,
+  hasRingLength,
+  isSilentSound,
+  normalizeRingMs,
   normalizeSoundId,
+  RING_LIMITS,
+  RING_OPTIONS,
+  ringDurationMs,
+  SILENT_SOUND_ID,
   soundFileFor,
+  stepRingMs,
   stepSoundId,
 } from './sound';
-export type { AlertSound } from './sound';
+export type { AlertSound, SoundKind } from './sound';
+
+export { alertDurationMs, restFloorMs } from './duration';
+export type { AlertProfile } from './duration';
 
 export {
   buildVibrationPattern,

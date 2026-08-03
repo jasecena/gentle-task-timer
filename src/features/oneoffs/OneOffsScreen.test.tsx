@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DateTimePicker from '@react-native-community/datetimepicker';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import * as Audio from 'expo-audio';
 import * as Notifications from 'expo-notifications';
 
 import { ONEOFF_LIMITS } from '@/core/oneoffs';
@@ -27,6 +29,8 @@ beforeEach(async () => {
   // after it. Granted is the default; the denial tests opt out for themselves.
   notifications.getPermissionsAsync.mockResolvedValue(GRANTED);
   notifications.requestPermissionsAsync.mockResolvedValue(GRANTED);
+  (Audio as unknown as { __reset: () => void }).__reset();
+  (DateTimePicker as unknown as { __reset: () => void }).__reset();
   await AsyncStorage.clear();
   jest.useFakeTimers();
   // A Thursday, so "next Monday" and "later today" are both reachable.
@@ -49,6 +53,18 @@ async function renderScreen() {
   await act(async () => {});
   await act(async () => {});
   return rendered;
+}
+
+function setTime(label: string, hours: number, minutes: number) {
+  (DateTimePicker as unknown as { __setTime: (l: string, h: number, m: number) => void }).__setTime(
+    label,
+    hours,
+    minutes,
+  );
+}
+
+function timeOf(label: string): string | undefined {
+  return (DateTimePicker as unknown as { __timeOf: (l: string) => string | undefined }).__timeOf(label);
 }
 
 async function addNote(text: string) {
@@ -117,11 +133,24 @@ describe('OneOffsScreen', () => {
     await renderScreen();
 
     await fireEvent.press(screen.getByLabelText('Friday'));
-    await fireEvent.press(screen.getByLabelText('Increase At')); // 09:00 -> 09:15
+    await act(async () => {
+      setTime('At', 7, 40);
+    });
     await addNote('Bins out');
 
-    expect(screen.getByText('Friday 09:15 · in 1 day')).toBeOnTheScreen();
-    expect(notifications.__pending('oneoff')[0]!.trigger).toMatchObject({ weekday: 6, hour: 9, minute: 15 });
+    expect(screen.getByText('Friday 07:40 · in 22h 40m')).toBeOnTheScreen();
+    expect(notifications.__pending('oneoff')[0]!.trigger).toMatchObject({ weekday: 6, hour: 7, minute: 40 });
+  });
+
+  it('shows the chosen time on the picker itself', async () => {
+    await renderScreen();
+
+    expect(timeOf('At')).toBe('09:00');
+    await act(async () => {
+      setTime('At', 18, 5);
+    });
+
+    expect(timeOf('At')).toBe('18:05');
   });
 
   it('picks one day at a time, because a one-off happens once', async () => {
@@ -138,11 +167,69 @@ describe('OneOffsScreen', () => {
   it('plays the voice chosen for the note', async () => {
     await renderScreen();
 
+    // Default -> Silent -> Chime.
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
     await fireEvent.press(screen.getByLabelText('Increase Sound'));
     expect(screen.getByLabelText('Sound: Chime')).toBeOnTheScreen();
     await addNote('Call the dentist');
 
     expect(notifications.__pending('oneoff')[0]!.content.sound).toBe('chime.wav');
+  });
+
+  /**
+   * The voices are deliberately similar enough that their names do not settle
+   * the choice, so picking one you cannot hear is guesswork.
+   */
+  it('previews a voice as you step onto it', async () => {
+    await renderScreen();
+    const audio = Audio as unknown as { __players: () => { clip: unknown }[]; __playCount: () => number };
+
+    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Silent — nothing to play
+    expect(audio.__playCount()).toBe(0);
+
+    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Chime
+    expect(audio.__playCount()).toBe(1);
+
+    // Tapping the value replays it, so two voices can be compared without
+    // stepping past and back.
+    await fireEvent.press(screen.getByLabelText('Sound: Chime'));
+    expect(audio.__playCount()).toBe(2);
+  });
+
+  it('sends a silent note with no sound key at all', async () => {
+    await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
+    expect(screen.getByLabelText('Sound: Silent')).toBeOnTheScreen();
+    // Asserted while it is still the draft: adding clears the composer, and
+    // with it the caveat this note is about.
+    expect(screen.getByText(/Silent alerts make no sound/)).toBeOnTheScreen();
+
+    await addNote('Quietly');
+
+    // Not 'default', and not a filename — absent. iOS plays nothing.
+    expect(notifications.__pending('oneoff')[0]!.content.sound).toBeUndefined();
+  });
+
+  it('sends the ten-second file when the ring is set long', async () => {
+    await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
+    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Chime
+    await fireEvent.press(screen.getByLabelText('Increase Ring length'));
+    expect(screen.getByLabelText('Ring length: 10s')).toBeOnTheScreen();
+    await addNote('Long one');
+
+    expect(notifications.__pending('oneoff')[0]!.content.sound).toBe('chime-10s.wav');
+  });
+
+  it('offers no ring length for a voice that has only one', async () => {
+    await renderScreen();
+
+    // Default is the system sound: one length, so the row is visibly dead
+    // rather than missing.
+    expect(screen.getByLabelText('Ring length: —')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Increase Ring length')).toBeDisabled();
   });
 
   it('deletes one note without touching the others', async () => {

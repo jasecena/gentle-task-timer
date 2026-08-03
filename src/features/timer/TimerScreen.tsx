@@ -5,6 +5,8 @@ import { buildVibrationPattern } from '@/core/alerts';
 import { DEFAULT_CONFIG, MAX_RUNS, type Phase, type TimerConfig, type TimerRun } from '@/core/timer';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
+import { SwipeToDelete } from '@/components/SwipeToDelete';
+
 import { TimerCard } from './components/TimerCard';
 import { useKeepAwakeWhile } from './hooks/useKeepAwakeWhile';
 import { useTimers } from './hooks/useTimers';
@@ -91,17 +93,23 @@ export function TimerScreen({ reminderSlots = 0, oneoffSlots = 0 }: Props) {
         </Text>
       </View>
 
+      {/*
+        Swipe is a shortcut, not the interface: the same delete lives inside
+        each card's settings, because a swipe is undiscoverable and invisible to
+        a screen reader.
+      */}
       {timers.views.map((entry) => (
-        <TimerCard
-          key={entry.id}
-          config={entry.config}
-          view={entry.view}
-          canRemove={timers.canRemove}
-          onToggle={() => toggle(entry.id)}
-          onReset={() => reset(entry.id)}
-          onRemove={() => timers.remove(entry.id)}
-          onChange={(config: TimerConfig) => timers.setConfig(entry.id, config)}
-        />
+        <SwipeToDelete key={entry.id} enabled={timers.canRemove} onDelete={() => timers.remove(entry.id)}>
+          <TimerCard
+            config={entry.config}
+            view={entry.view}
+            canRemove={timers.canRemove}
+            onToggle={() => toggle(entry.id)}
+            onReset={() => reset(entry.id)}
+            onRemove={() => timers.remove(entry.id)}
+            onChange={(config: TimerConfig) => timers.setConfig(entry.id, config)}
+          />
+        </SwipeToDelete>
       ))}
 
       <Pressable

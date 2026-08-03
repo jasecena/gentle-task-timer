@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
-import { soundFileFor } from '@/core/alerts';
+import { isSilentSound, soundFileFor } from '@/core/alerts';
 import type { PlannedAlert } from '@/core/timer';
 import { ALERT_TAGS, cancelScheduled, replaceScheduled } from '@/services/notifications';
 
@@ -23,11 +23,12 @@ function toRequest(alert: PlannedAlert): Notifications.NotificationRequestInput 
     content: {
       title: alert.title,
       body: alert.body,
-      // A bundled filename, or 'default' for iOS's own sound. The files are put
-      // in the bundle by the expo-notifications plugin's `sounds` array; a name
-      // iOS cannot resolve is delivered silently, which is why `soundFileFor`
-      // falls back rather than passing an unknown id through.
-      sound: soundFileFor(alert.soundId) ?? 'default',
+      // Three cases, and they are genuinely different: a bundled filename, the
+      // system sound, or *no sound key at all* for a silent alert. The files
+      // are put in the bundle by the expo-notifications plugin's `sounds`
+      // array; a name iOS cannot resolve is delivered silently, which is why
+      // `soundFileFor` falls back rather than passing an unknown id through.
+      sound: isSilentSound(alert.soundId) ? undefined : (soundFileFor(alert.soundId, alert.ringMs) ?? 'default'),
       interruptionLevel: 'active',
       data: { tag: ALERT_TAGS.run, runId: alert.runId, kind: alert.kind, phaseIndex: alert.phaseIndex },
     },

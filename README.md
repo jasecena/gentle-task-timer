@@ -16,7 +16,8 @@ wrote, and then removes itself.
 **Schedule** — a standing arrangement: every 30 minutes, 09:00–17:00, weekdays.
 Nothing counts down and nothing needs the app open.
 
-Every alert can play one of four bundled sounds, or the system one.
+Every alert can play one of four bundled sounds, the system one, or nothing at
+all — short or ringing for ten seconds.
 
 Built and released entirely from Linux — no Mac at any point.
 
@@ -47,11 +48,13 @@ Built and released entirely from Linux — no Mac at any point.
 
 ## Status
 
-v0.3.1 is the current release. Scope:
+v0.4.0 is the current release. Scope:
 
 **Timers**
 
 - [x] Up to eight timers running in parallel, each independent
+- [x] Swipe a timer or a note left to delete it (an ordinary button is always
+      there too — a swipe is invisible to VoiceOver)
 - [x] Named timer, work duration (30s minimum), repeat count, optional rest
 - [x] Start / pause / resume / reset, per timer
 - [x] Per-phase and whole-run progress
@@ -62,6 +65,7 @@ v0.3.1 is the current release. Scope:
 **Once**
 
 - [x] A free-text note, a weekday and a time — delivered once, then forgotten
+- [x] Native iOS time wheel, here and on the schedule window
 - [x] Arrives with the app closed; iOS resolves the next occurrence in local
       time, so it survives daylight saving
 - [x] Stays in Notification Centre, unlike a timer alert
@@ -80,10 +84,14 @@ v0.3.1 is the current release. Scope:
 
 - [x] Local notifications, so boundaries reach you with the app closed or the
       screen locked. Timer alerts are titled with the timer's name
-- [x] Choice of alert sound — Default, Chime, Bell, Marimba or Pulse — bundled
-      and synthesised, playing with the app closed. **Requires the Push
-      Notifications capability on the App ID**; see
-      [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [x] Choice of alert sound — Default, Silent, Chime, Bell, Marimba or Pulse —
+      bundled and synthesised, playing with the app closed, and previewable in
+      the picker before you commit. **Requires the Push Notifications capability
+      on the App ID**; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [x] Ring length — short, or ten seconds. A longer bundled file, played to its
+      end by iOS; it cannot be stopped early and no app can do better
+- [x] Silent alerts, for vibration without noise. With the app closed the buzz
+      is your Ring/Silent switch, which no app can override
 - [x] Vibration of a chosen length — off, 1s, 3s, 5s or 10s — with distinct
       rhythms per alert kind. Foreground only; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [x] All three features share iOS's 64-notification ceiling deliberately, and
@@ -106,7 +114,7 @@ machine.
 
 ```bash
 npm run verify     # typecheck + lint + format check + tests. Run before pushing.
-npm test           # 291 tests, ~5s
+npm test           # 317 tests, ~7s
 npm run test:watch
 ```
 
@@ -160,9 +168,11 @@ src/
 │   └── reminders/        Schedule screen, its hooks and its alert requests
 ├── services/
 │   ├── notifications.ts  The only file that talks to expo-notifications
+│   ├── soundPreview.ts   The only file that talks to expo-audio
 │   └── storage.ts        The only file that talks to AsyncStorage
 ├── shell/TabShell.tsx    The three modes behind a bottom tab bar
-├── components/           Shared UI (StepperRow, DayRow)
+├── components/           Shared UI (StepperRow, DayRow, TimeField,
+│                         AlertRows, SwipeToDelete)
 └── theme/tokens.ts       Colours, spacing, type scale
 ```
 

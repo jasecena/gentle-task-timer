@@ -11,6 +11,11 @@ interface Props {
   canIncrement?: boolean;
   onDecrement: () => void;
   onIncrement: () => void;
+  /**
+   * Makes the value itself tappable. Used by the sound row to replay the
+   * current voice without having to step off it and back.
+   */
+  onPressValue?: () => void;
 }
 
 /**
@@ -29,6 +34,7 @@ export function StepperRow({
   canIncrement = true,
   onDecrement,
   onIncrement,
+  onPressValue,
 }: Props) {
   return (
     <View style={[styles.row, disabled && styles.rowDisabled]}>
@@ -40,7 +46,13 @@ export function StepperRow({
           disabled={disabled || !canDecrement}
           onPress={onDecrement}
         />
-        <Text style={styles.rowValue} accessibilityLabel={`${label}: ${value}`}>
+        <Text
+          style={styles.rowValue}
+          accessibilityLabel={`${label}: ${value}`}
+          {...(onPressValue && !disabled
+            ? { onPress: onPressValue, accessibilityRole: 'button' as const, suppressHighlighting: true }
+            : {})}
+        >
           {value}
         </Text>
         <StepperButton

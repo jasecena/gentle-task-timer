@@ -66,12 +66,14 @@ describe('validateConfig', () => {
       repeats: 0,
       vibrationMs: 50,
       soundId: 'nope',
+      ringMs: 4_321,
     });
 
     expect(issues.map((i) => i.field).sort()).toEqual([
       'name',
       'repeats',
       'restDurationMs',
+      'ringMs',
       'soundId',
       'vibrationMs',
       'workDurationMs',
@@ -110,6 +112,33 @@ describe('normalizeConfig', () => {
     const valid = config({ name: 'Pomodoro', workDurationMs: 1_500_000, restDurationMs: 300_000, repeats: 4 });
 
     expect(normalizeConfig(valid)).toEqual(valid);
+  });
+
+  /**
+   * A rest shorter than the alert announcing it is not a rest: the noise is
+   * still going when the next work phase starts. Lifting it is what keeps every
+   * boundary a real boundary.
+   */
+  it('lifts a rest that the alert would swallow', () => {
+    const result = normalizeConfig({ restDurationMs: 5_000, soundId: 'chime', ringMs: 10_000, vibrationMs: 0 });
+
+    expect(result.restDurationMs).toBe(10_000);
+    expect(validateConfig(result)).toEqual([]);
+  });
+
+  it('leaves a rest that is already long enough, and leaves "no rest" alone', () => {
+    const longRing = { soundId: 'chime', ringMs: 10_000, vibrationMs: 0 };
+
+    expect(normalizeConfig({ ...longRing, restDurationMs: 60_000 }).restDurationMs).toBe(60_000);
+    // Zero means "no rest phase", a different arrangement rather than a short
+    // rest — lengthening it would invent a phase nobody asked for.
+    expect(normalizeConfig({ ...longRing, restDurationMs: 0 }).restDurationMs).toBe(0);
+  });
+
+  it('follows the vibration length too, not only the ring', () => {
+    const result = normalizeConfig({ restDurationMs: 3_000, vibrationMs: 10_000, soundId: 'silent' });
+
+    expect(result.restDurationMs).toBe(10_000);
   });
 
   it('trims and truncates the name, falling back to the default when empty', () => {

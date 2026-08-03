@@ -158,6 +158,51 @@ describe('a single timer', () => {
   });
 });
 
+describe('the alert cannot eat the rest', () => {
+  /**
+   * The rule itself lives in `normalizeConfig` and is covered in the core
+   * suite, where the arithmetic can be exercised directly.
+   *
+   * Worth recording what these two assert instead, because it is easy to
+   * misread the gap as a missing test: with rest stepping in 15-second
+   * increments and an alert capped at 10 seconds, the UI **cannot** produce a
+   * rest shorter than the alert. The floor is a guard at the trust boundary —
+   * it catches a restored config from a build with different limits — not
+   * something these controls can reach. What is checkable here is that the
+   * shortest reachable rest still clears the longest possible alert.
+   */
+  it('cannot reach a rest shorter than the longest possible alert', async () => {
+    await renderScreen();
+    await openSettings(A);
+
+    await fireEvent.press(screen.getByLabelText('Decrease Rest'));
+    expect(screen.getByLabelText('Rest: 15s')).toBeOnTheScreen();
+
+    // The loudest, longest alert the app offers: a 10s buzz and a 10s ring.
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
+    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Chime
+    await fireEvent.press(screen.getByLabelText('Increase Ring length')); // 10s
+    await fireEvent.press(screen.getByLabelText('Increase Vibration'));
+    await fireEvent.press(screen.getByLabelText('Increase Vibration')); // 10s
+
+    // 15s still clears it, so the rest is untouched and no warning is needed.
+    expect(screen.getByLabelText('Rest: 15s')).toBeOnTheScreen();
+    expect(screen.queryByText(/Rest is held at/)).not.toBeOnTheScreen();
+  });
+
+  it('leaves "no rest at all" alone, because that is a different arrangement', async () => {
+    await renderScreen();
+    await openSettings(A);
+
+    await fireEvent.press(screen.getByLabelText('Decrease Rest')); // 15s
+    await fireEvent.press(screen.getByLabelText('Decrease Rest')); // None
+
+    // Zero is "no rest phase", not "a very short rest", so the floor never
+    // lifts it into existence.
+    expect(screen.getByLabelText('Rest: None')).toBeOnTheScreen();
+  });
+});
+
 describe('several timers at once', () => {
   it('adds a timer with a name that cannot be confused with the first', async () => {
     await renderScreen();
@@ -226,6 +271,16 @@ describe('several timers at once', () => {
     // An empty screen with no way back is worse than a timer you can edit.
     await openSettings(A);
     expect(screen.getByLabelText(`Delete ${A}`)).toBeDisabled();
+  });
+
+  it('keeps a labelled delete button, so swipe is never the only route', async () => {
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText('Add timer'));
+
+    // The swipe-revealed button is hidden from assistive technology on purpose;
+    // exactly one Delete per timer should be reachable by label.
+    await openSettings(B);
+    expect(screen.getByLabelText(`Delete ${B}`)).toBeOnTheScreen();
   });
 
   it('stops adding at the ceiling', async () => {
@@ -313,6 +368,8 @@ describe('notifications', () => {
     await renderScreen();
     await openSettings(A);
 
+    // Default -> Silent -> Chime.
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
     await fireEvent.press(screen.getByLabelText('Increase Sound'));
     expect(screen.getByLabelText('Sound: Chime')).toBeOnTheScreen();
 
