@@ -51,7 +51,21 @@ else
 fi
 
 schemes_json="$(xcodebuild -list -json "${list_args[@]}")"
-mapfile -t schemes < <(printf '%s' "$schemes_json" | jq -r '(.workspace // .project).schemes[]')
+
+# Read the scheme list with a loop rather than `mapfile`. `mapfile` is a bash 4
+# builtin and macOS still ships bash 3.2 — frozen in 2007 over the GPLv3 licence
+# change — so on a macOS runner it fails with "mapfile: command not found" and
+# exit 127. This script only ever runs on macOS, which is why the Linux CI job
+# cannot catch a regression here.
+#
+# The body uses `if` rather than `[[ ... ]] && ...` because under `set -e` a
+# trailing false test would make the loop body return non-zero and abort.
+schemes=()
+while IFS= read -r line; do
+  if [[ -n "$line" ]]; then
+    schemes+=("$line")
+  fi
+done < <(printf '%s' "$schemes_json" | jq -r '(.workspace // .project).schemes[]')
 
 if (( ${#schemes[@]} == 0 )); then
   echo "::error::No shared schemes found. In Xcode, mark the scheme as Shared and commit the resulting .xcscheme file." >&2
