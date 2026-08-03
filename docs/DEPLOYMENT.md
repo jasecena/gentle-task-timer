@@ -126,9 +126,23 @@ the build with "no suitable application record was found".
 2. **App IDs** → **App**.
 3. Bundle ID: **Explicit**, e.g. `com.yourname.lifetimer`. It must be globally
    unique and must match `vars.IOS_BUNDLE_IDENTIFIER` exactly.
-4. Capabilities: leave everything off for now. This app is fully offline. Add
-   **Push Notifications** only if you later add remote notifications — local
-   notifications need no capability.
+4. Capabilities: enable **Push Notifications**. Nothing else.
+
+   > This one is not optional and it is not obvious, because the app sends no
+   > remote push. It is needed because bundled alert sounds require the
+   > `expo-notifications` config plugin, and that plugin writes an
+   > `aps-environment` entitlement into the build. Cloud signing will not issue
+   > a provisioning profile for an entitlement the App ID does not carry, so
+   > without it the release fails at `-exportArchive` with
+   > `Provisioning profile ... doesn't include the aps-environment entitlement`.
+   >
+   > Enabling the capability does **not** create an APNs key, does not let
+   > anyone push to the app, and needs no further configuration. It only makes
+   > the profile match the binary. See
+   > [ARCHITECTURE.md](ARCHITECTURE.md#alert-sounds-and-what-they-cost).
+   >
+   > Versions up to v0.2 needed no capability at all. If you set the App ID up
+   > then, go back and enable this before the next release.
 
 ### Certificates and provisioning profiles
 

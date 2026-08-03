@@ -6,7 +6,6 @@ import {
   validateReminderConfig,
 } from '../config';
 import { countReminderSlots, planReminders, reminderTimesOfDay } from '../plan';
-import { formatClock, formatDays, sortDays } from '../time';
 import type { ReminderConfig } from '../types';
 
 const WEEKDAYS_9_TO_5: ReminderConfig = {
@@ -16,6 +15,7 @@ const WEEKDAYS_9_TO_5: ReminderConfig = {
   endMinute: 17 * 60,
   days: [1, 2, 3, 4, 5],
   vibrationMs: 3_000,
+  soundId: 'default',
 };
 
 describe('reminderTimesOfDay', () => {
@@ -137,6 +137,28 @@ describe('validateReminderConfig', () => {
     expect(issues.map((issue) => issue.field)).toContain('endMinute');
   });
 
+  it('rejects an interval so wide it is no longer a repeating schedule', () => {
+    const issues = validateReminderConfig({ ...WEEKDAYS_9_TO_5, intervalMs: 13 * 60 * 60_000 });
+
+    expect(issues.map((issue) => issue.field)).toContain('intervalMs');
+  });
+
+  it('accepts vibration turned off, and rejects lengths the phone cannot produce', () => {
+    expect(validateReminderConfig({ ...WEEKDAYS_9_TO_5, vibrationMs: 0 })).toEqual([]);
+    expect(validateReminderConfig({ ...WEEKDAYS_9_TO_5, vibrationMs: 200 }).map((i) => i.field)).toEqual([
+      'vibrationMs',
+    ]);
+    expect(validateReminderConfig({ ...WEEKDAYS_9_TO_5, vibrationMs: 10_001 }).map((i) => i.field)).toEqual([
+      'vibrationMs',
+    ]);
+  });
+
+  it('rejects a voice that is not in the catalogue', () => {
+    // A filename iOS cannot resolve is delivered silently, which reads as a
+    // broken alert rather than a missing sound.
+    expect(validateReminderConfig({ ...WEEKDAYS_9_TO_5, soundId: 'gong' }).map((i) => i.field)).toEqual(['soundId']);
+  });
+
   it('reports every problem at once rather than the first', () => {
     const issues = validateReminderConfig({ ...WEEKDAYS_9_TO_5, days: [], intervalMs: 1_000 });
 
@@ -181,25 +203,5 @@ describe('normalizeReminderConfig', () => {
 
   it('sorts and deduplicates days', () => {
     expect(normalizeReminderConfig({ days: [5, 1, 5, 0] }).days).toEqual([0, 1, 5]);
-  });
-});
-
-describe('time formatting', () => {
-  it('formats a minute of the day as 24-hour clock', () => {
-    expect(formatClock(0)).toBe('00:00');
-    expect(formatClock(9 * 60 + 5)).toBe('09:05');
-    expect(formatClock(23 * 60 + 59)).toBe('23:59');
-  });
-
-  it('names the common day groupings', () => {
-    expect(formatDays([1, 2, 3, 4, 5])).toBe('Mon–Fri');
-    expect(formatDays([0, 6])).toBe('Sat, Sun');
-    expect(formatDays([0, 1, 2, 3, 4, 5, 6])).toBe('Every day');
-    expect(formatDays([2, 4])).toBe('Tue, Thu');
-    expect(formatDays([])).toBe('No days');
-  });
-
-  it('sorts days from Sunday regardless of input order', () => {
-    expect(sortDays([6, 0, 3])).toEqual([0, 3, 6]);
   });
 });

@@ -4,42 +4,54 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { countReminderSlots } from '@/core/reminders';
+import { OneOffsScreen } from '@/features/oneoffs/OneOffsScreen';
+import { useOneOffs } from '@/features/oneoffs/hooks/useOneOffs';
 import { RemindersScreen } from '@/features/reminders/RemindersScreen';
 import { useReminders } from '@/features/reminders/hooks/useReminders';
 import { TimerScreen } from '@/features/timer/TimerScreen';
 import { colors, spacing, typography } from '@/theme/tokens';
 
-type Tab = 'timer' | 'schedule';
+type Tab = 'timer' | 'once' | 'schedule';
 
 const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'timer', label: 'Timer', icon: 'timer-outline' },
+  { key: 'timer', label: 'Timers', icon: 'timer-outline' },
+  { key: 'once', label: 'Once', icon: 'create-outline' },
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline' },
 ];
 
 /**
- * The two modes, behind a bottom tab bar.
+ * The three modes, behind a bottom tab bar.
  *
- * Hand-rolled rather than pulling in a navigation library: two tabs need no
+ * Still hand-rolled rather than a navigation library: three tabs need no
  * router, no navigation state and no native screen container, and this stays
  * one file with no new native module in the build.
  *
- * Both screens stay **mounted**, with the inactive one hidden. That is not an
- * optimisation — unmounting the timer would throw away a running countdown the
- * moment you glanced at the schedule tab.
+ * Every screen stays **mounted**, with the inactive ones hidden. That is not an
+ * optimisation — unmounting the timers would throw away every running countdown
+ * the moment you glanced at another tab.
+ *
+ * The two counts lifted here are the whole reason the shell knows anything: the
+ * timers need to see how many of iOS's 64 notification slots a standing
+ * schedule and a pile of pending notes are already holding, so they claim only
+ * what is free.
  */
 export function TabShell() {
   const [tab, setTab] = useState<Tab>('timer');
 
-  // Lifted so the timer knows how many of the 64 notification slots a standing
-  // schedule is holding, and takes only what is left.
   const reminders = useReminders();
   const reminderSlots = reminders.config.enabled ? countReminderSlots(reminders.config) : 0;
+
+  const oneoffs = useOneOffs();
+  const oneoffSlots = oneoffs.oneoffs.length;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.screens}>
         <View style={[styles.screen, tab !== 'timer' && styles.hidden]}>
-          <TimerScreen reminderSlots={reminderSlots} />
+          <TimerScreen reminderSlots={reminderSlots} oneoffSlots={oneoffSlots} />
+        </View>
+        <View style={[styles.screen, tab !== 'once' && styles.hidden]}>
+          <OneOffsScreen oneoffs={oneoffs} />
         </View>
         <View style={[styles.screen, tab !== 'schedule' && styles.hidden]}>
           <RemindersScreen reminders={reminders} />
@@ -54,9 +66,9 @@ export function TabShell() {
               key={key}
               onPress={() => setTab(key)}
               accessibilityRole="tab"
-              // "Schedule tab", not "Schedule": the schedule screen has a
-              // heading of its own, and an ambiguous label is a coin toss for
-              // both a screen reader and the UI smoke test.
+              // "Schedule tab", not "Schedule": each screen has a heading of its
+              // own, and an ambiguous label is a coin toss for both a screen
+              // reader and the UI smoke test.
               accessibilityLabel={`${label} tab`}
               accessibilityState={{ selected: active }}
               style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
@@ -74,8 +86,8 @@ export function TabShell() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   screens: { flex: 1 },
-  // Absolute fill rather than conditional rendering: both screens keep their
-  // state and their layout, and switching costs nothing.
+  // Absolute fill rather than conditional rendering: every screen keeps its
+  // state and its layout, and switching costs nothing.
   screen: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   hidden: { display: 'none' },
   tabBar: {

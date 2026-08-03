@@ -13,12 +13,22 @@ and integrates no analytics or crash reporting. App Transport Security is
 enforced with no exception domains, and `ITSAppUsesNonExemptEncryption` is
 declared false because there is no encryption to declare.
 
-It stores two things on the device, in the app's own sandboxed AsyncStorage: the
-current timer run and the reminder schedule. Both are settings — durations,
-times of day, weekdays — with no personal data, no identifiers and no history of
-use. Nothing is ever transmitted, so the store is readable only by someone who
-already has the unlocked device. The app requests one permission,
-notifications, and no capability or entitlement at all.
+It stores three things on the device, in the app's own sandboxed AsyncStorage:
+the timer runs, the reminder schedule, and any one-off notes. The first two are
+settings — durations, times of day, weekdays — with no personal data, no
+identifiers and no history of use. A one-off note is **free text the user
+wrote**, so it is the only content in the app that could be sensitive; it never
+leaves the device, and it is deleted as soon as it has been delivered.
+
+Nothing is ever transmitted, so the store is readable only by someone who
+already has the unlocked device.
+
+The app requests one permission, notifications. It carries one entitlement,
+`aps-environment`, which the `expo-notifications` config plugin writes so that
+custom alert sounds can be bundled. **No remote push is sent or received**:
+there is no APNs key, no device token is ever requested, and the app makes no
+network calls at all. The entitlement exists to make the provisioning profile
+match the binary, and nothing else.
 
 The realistic attack surface is therefore not the app — it is the **release
 pipeline**, which holds an App Store Connect key capable of publishing builds

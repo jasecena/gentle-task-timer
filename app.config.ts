@@ -35,7 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: VARIANT_NAME[VARIANT],
   slug: 'gentle-task-timer',
   // CI derives the marketing version from the release tag (v1.2.3 -> 1.2.3).
-  version: process.env.APP_VERSION || '0.2.0',
+  version: process.env.APP_VERSION || '0.3.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'gentletasktimer',
@@ -45,17 +45,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // offering targets that are not actually supported or tested.
   platforms: ['ios'],
 
-  // NOTE: `expo-notifications` is deliberately NOT listed here.
-  //
-  // Its config plugin writes an `aps-environment` entitlement into the build,
-  // which requires the Push Notifications capability on the App ID — and this
-  // app sends no remote push. Local notifications, which are all it uses, need
-  // no capability and no entitlement whatsoever, so the App ID stays at zero
-  // capabilities and App Review has nothing to ask about.
-  //
-  // Adding the plugin to bundle custom alert sounds means enabling that
-  // capability in the developer portal first, or cloud signing fails to issue a
-  // profile. See docs/ARCHITECTURE.md.
   plugins: [
     [
       'expo-splash-screen',
@@ -64,6 +53,31 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         resizeMode: 'contain',
         // Matches colors.background, so launch does not flash white into a dark UI.
         backgroundColor: '#0B0F14',
+      },
+    ],
+    [
+      // Present for exactly one reason: `sounds` copies these files into the app
+      // bundle, and a custom notification sound has to be a file in the bundle.
+      // There is no other supported way to make a local notification play
+      // something other than the system sound.
+      //
+      // The cost, and it is a real one: this plugin also writes an
+      // `aps-environment` entitlement, which means the App ID **must** have the
+      // Push Notifications capability enabled at developer.apple.com — even
+      // though this app sends no remote push and never will. Without it, cloud
+      // signing cannot issue a provisioning profile and the release workflow
+      // fails at `-exportArchive`. See docs/DEPLOYMENT.md § 3.
+      //
+      // The files themselves are synthesised by scripts/make-alert-sounds.py,
+      // so they carry no licence and nothing to declare at App Review.
+      'expo-notifications',
+      {
+        sounds: [
+          './assets/sounds/chime.wav',
+          './assets/sounds/bell.wav',
+          './assets/sounds/marimba.wav',
+          './assets/sounds/pulse.wav',
+        ],
       },
     ],
   ],

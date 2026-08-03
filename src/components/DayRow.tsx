@@ -1,46 +1,50 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { dayInitial, dayName, sortDays, WEEKDAYS, type Weekday } from '@/core/reminders';
+import { dayInitial, dayName, WEEKDAYS, type Weekday } from '@/core/clock';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 interface Props {
-  days: readonly Weekday[];
-  onChange: (days: Weekday[]) => void;
+  /** The days currently on. A single-select caller passes an array of one. */
+  selected: readonly Weekday[];
+  onPress: (day: Weekday) => void;
   disabled?: boolean;
+  /**
+   * `checkbox` for a set of days, `radio` for exactly one.
+   *
+   * The visual is identical either way; what changes is what a screen reader
+   * announces, and therefore whether someone who cannot see the row knows that
+   * picking Thursday just unpicked Monday.
+   */
+  role?: 'checkbox' | 'radio';
 }
 
 /**
- * The seven-day toggle row.
+ * The seven-day toggle row, shared by the schedule and by one-off notes.
+ *
+ * The row decides nothing about selection — it reports a press and renders what
+ * it is given. That is what lets the schedule treat a press as "toggle this day
+ * in the set" and a one-off treat it as "this is now the day", from one
+ * component.
  *
  * The initials are ambiguous — two Ts, two Ss — which is why the row always
  * starts at Sunday and every button carries the full day name as its
  * accessibility label. A screen reader user hears "Tuesday, selected", not "T".
  */
-export function DayPicker({ days, onChange, disabled = false }: Props) {
-  const selected = new Set(days);
-
-  const toggle = (day: Weekday) => {
-    const next = new Set(selected);
-    if (next.has(day)) {
-      next.delete(day);
-    } else {
-      next.add(day);
-    }
-    onChange(sortDays([...next]));
-  };
+export function DayRow({ selected, onPress, disabled = false, role = 'checkbox' }: Props) {
+  const on = new Set(selected);
 
   return (
     <View style={styles.row}>
       {WEEKDAYS.map((day) => {
-        const isOn = selected.has(day);
+        const isOn = on.has(day);
         return (
           <Pressable
             key={day}
-            onPress={() => toggle(day)}
+            onPress={() => onPress(day)}
             disabled={disabled}
-            accessibilityRole="checkbox"
+            accessibilityRole={role}
             accessibilityLabel={dayName(day)}
-            accessibilityState={{ checked: isOn, disabled }}
+            accessibilityState={role === 'radio' ? { selected: isOn, disabled } : { checked: isOn, disabled }}
             style={({ pressed }) => [
               styles.day,
               isOn && styles.dayOn,

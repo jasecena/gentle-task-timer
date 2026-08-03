@@ -1,7 +1,14 @@
 import { StyleSheet, View } from 'react-native';
 
 import { StepperRow } from '@/components/StepperRow';
-import { formatVibrationLabel, stepVibrationMs, VIBRATION_LIMITS } from '@/core/alerts';
+import {
+  canStepSound,
+  formatSoundLabel,
+  formatVibrationLabel,
+  stepSoundId,
+  stepVibrationMs,
+  VIBRATION_LIMITS,
+} from '@/core/alerts';
 import { LIMITS, formatDurationLabel, normalizeConfig, type TimerConfig } from '@/core/timer';
 import { spacing } from '@/theme/tokens';
 
@@ -52,8 +59,9 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
         canIncrement={config.repeats < LIMITS.MAX_REPEATS}
       />
       {/*
-        Editable mid-run, unlike the durations: changing how long the phone
-        buzzes cannot invalidate a schedule the run is already following.
+        Both editable mid-run, unlike the durations: changing how long the phone
+        buzzes, or what it plays, cannot invalidate a timeline the run is
+        already following. Editing a duration can, which is why those lock.
       */}
       <StepperRow
         label="Vibration"
@@ -62,6 +70,14 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
         onIncrement={() => update({ vibrationMs: stepVibrationMs(config.vibrationMs, 1) })}
         canDecrement={config.vibrationMs > VIBRATION_LIMITS.OFF_MS}
         canIncrement={config.vibrationMs < VIBRATION_LIMITS.MAX_MS}
+      />
+      <StepperRow
+        label="Sound"
+        value={formatSoundLabel(config.soundId)}
+        onDecrement={() => update({ soundId: stepSoundId(config.soundId, -1) })}
+        onIncrement={() => update({ soundId: stepSoundId(config.soundId, 1) })}
+        canDecrement={canStepSound(config.soundId, -1)}
+        canIncrement={canStepSound(config.soundId, 1)}
       />
     </View>
   );

@@ -10,8 +10,10 @@
 # app boots, the clock genuinely ticks, and the controls respond.
 #
 # NOTE: the literals below are tied to INITIAL_CONFIG in
-# src/features/timer/TimerScreen.tsx (2 minute work phase, 3 repeats). Change
-# that and this flow must change with it.
+# src/features/timer/TimerScreen.tsx (name, 2 minute work phase, 3 repeats).
+# Every control is labelled with its timer's name, because with several timers
+# on screen "Pause" alone would be ambiguous. Change either and this flow must
+# change with it.
 #
 # ${APP_ID} is substituted by the CI job from vars.IOS_BUNDLE_IDENTIFIER.
 
@@ -26,7 +28,7 @@ appId: ${APP_ID}
 - assertVisible: 'Cycle 1 of 3'
 
 # --- Starting moves it into the work phase -------------------------------
-- tapOn: 'Start'
+- tapOn: 'Start Gentle Task Timer'
 
 # The first Start asks for notification permission, and the system dialog sits
 # over the app swallowing the next tap. Optional because it appears exactly
@@ -37,7 +39,7 @@ appId: ${APP_ID}
     optional: true
 
 - assertVisible: 'WORK'
-- assertVisible: 'Pause'
+- assertVisible: 'Pause Gentle Task Timer'
 
 # The clock is genuinely running, not just rendered once. Waiting for "02:00"
 # to *disappear* is deterministic — no fixed sleep, so no timing flake.
@@ -46,19 +48,31 @@ appId: ${APP_ID}
     timeout: 10000
 
 # --- Pausing holds position ----------------------------------------------
-- tapOn: 'Pause'
-- assertVisible: 'Resume'
+- tapOn: 'Pause Gentle Task Timer'
+- assertVisible: 'Resume Gentle Task Timer'
 
 # --- Reset returns to the initial state ----------------------------------
-- tapOn: 'Reset'
+- tapOn: 'Reset Gentle Task Timer'
 - assertVisible: 'READY'
 - assertVisible: '02:00'
 
-# --- The other tab renders -----------------------------------------------
-# Worth the extra seconds: the schedule screen is what pulls in the icon font
-# and the storage module, and a missing native module shows up as a blank
-# screen here rather than as a crash on launch.
+# --- The other tabs render -----------------------------------------------
+# Worth the extra seconds: these screens are what pull in the icon font, the
+# storage module and the text input, and a missing native module shows up as a
+# blank screen here rather than as a crash on launch.
 - tapOn: 'Schedule tab'
 - assertVisible: 'alerts a week'
-- tapOn: 'Timer tab'
+- tapOn: 'Once tab'
+- assertVisible: 'notes waiting'
+- tapOn: 'Timers tab'
 - assertVisible: 'READY'
+
+# --- A second timer runs alongside the first -----------------------------
+# The feature that most needs a real device to trust: two runs, two sets of
+# pending notifications, no interference.
+- tapOn: 'Add timer'
+- tapOn: 'Start Gentle Task Timer'
+- tapOn: 'Start Gentle Task Timer 2'
+- assertVisible: 'Pause Gentle Task Timer'
+- assertVisible: 'Pause Gentle Task Timer 2'
+- assertVisible: '2 of 8 · 2 running'

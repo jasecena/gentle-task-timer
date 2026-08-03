@@ -1,7 +1,15 @@
 import { StyleSheet, View } from 'react-native';
 
+import { DayRow } from '@/components/DayRow';
 import { StepperRow } from '@/components/StepperRow';
-import { formatVibrationLabel, stepVibrationMs, VIBRATION_LIMITS } from '@/core/alerts';
+import {
+  canStepSound,
+  formatSoundLabel,
+  formatVibrationLabel,
+  stepSoundId,
+  stepVibrationMs,
+  VIBRATION_LIMITS,
+} from '@/core/alerts';
 import {
   clampMinute,
   formatClock,
@@ -12,9 +20,8 @@ import {
   type Weekday,
 } from '@/core/reminders';
 import { formatDurationLabel } from '@/core/timer';
+import { sortDays } from '@/core/clock';
 import { spacing } from '@/theme/tokens';
-
-import { DayPicker } from './DayPicker';
 
 interface Props {
   config: ReminderConfig;
@@ -43,6 +50,16 @@ function stepInterval(currentMs: number, direction: 1 | -1): number {
   );
   const next = Math.min(INTERVAL_MINUTES.length - 1, Math.max(0, index + direction));
   return INTERVAL_MINUTES[next]! * 60_000;
+}
+
+function toggleDay(days: readonly Weekday[], day: Weekday): Weekday[] {
+  const next = new Set(days);
+  if (next.has(day)) {
+    next.delete(day);
+  } else {
+    next.add(day);
+  }
+  return sortDays([...next]);
 }
 
 export function ScheduleEditor({ config, onChange, disabled = false }: Props) {
@@ -88,8 +105,22 @@ export function ScheduleEditor({ config, onChange, disabled = false }: Props) {
         canDecrement={config.vibrationMs > VIBRATION_LIMITS.OFF_MS}
         canIncrement={config.vibrationMs < VIBRATION_LIMITS.MAX_MS}
       />
+      <StepperRow
+        label="Sound"
+        value={formatSoundLabel(config.soundId)}
+        disabled={disabled}
+        onDecrement={() => update({ soundId: stepSoundId(config.soundId, -1) })}
+        onIncrement={() => update({ soundId: stepSoundId(config.soundId, 1) })}
+        canDecrement={canStepSound(config.soundId, -1)}
+        canIncrement={canStepSound(config.soundId, 1)}
+      />
 
-      <DayPicker days={config.days} onChange={(days: Weekday[]) => update({ days })} disabled={disabled} />
+      {/* A press toggles the day in the set — a schedule runs on any number of days. */}
+      <DayRow
+        selected={config.days}
+        onPress={(day: Weekday) => update({ days: toggleDay(config.days, day) })}
+        disabled={disabled}
+      />
     </View>
   );
 }

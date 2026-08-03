@@ -38,19 +38,34 @@ export interface PlannedAlert {
    * Stable identity for this boundary. Re-planning the same run produces the
    * same key for the same phase, so a rescheduled alert replaces its previous
    * copy instead of duplicating it.
+   *
+   * The run's id is part of the key, and has to be: several timers run at once,
+   * and a bare `phase-3` would mean the second timer's fourth boundary silently
+   * replaced the first timer's — iOS treats a repeated identifier as a replace.
    */
   readonly key: string;
   readonly kind: AlertKind;
+  /** Which run this belongs to, so the feature layer can attribute a delivered alert. */
+  readonly runId: string;
   /** Index of the phase that *ends* at this boundary. */
   readonly phaseIndex: number;
   /** Epoch ms at which the alert should fire. */
   readonly fireAtMs: number;
+  /** The run's name — with several timers going, this is what identifies the banner. */
   readonly title: string;
   readonly body: string;
+  /** Bundled voice for this alert, from the run's config. */
+  readonly soundId: string;
 }
 
 export interface AlertPlanInput {
   readonly schedule: Schedule;
+  /** Identity of the run being planned. Namespaces every key this call produces. */
+  readonly runId: string;
+  /** The run's name, used as each alert's title. */
+  readonly name: string;
+  /** Which bundled voice the alerts play. */
+  readonly soundId: string;
   /**
    * Epoch ms corresponding to elapsed time zero for the current run, i.e.
    * `lastResumedAt - accumulatedMs`. Pauses move it forward, which is exactly
@@ -67,41 +82,54 @@ function pluralizeCycles(count: number): string {
   return count === 1 ? '1 cycle' : `${count} cycles`;
 }
 
-function describe(phase: Phase, schedule: Schedule): Pick<PlannedAlert, 'kind' | 'title' | 'body'> {
+/**
+ * The body copy for a boundary.
+ *
+ * What used to be the title now lives at the front of the body, because the
+ * title has a more valuable job: naming which of several running timers this
+ * is. "Kettle — Time to rest · Cycle 1 of 3" answers both questions in the
+ * space iOS gives a banner.
+ */
+function describe(phase: Phase, schedule: Schedule): Pick<PlannedAlert, 'kind' | 'body'> {
   const next = schedule.phases[phase.index + 1];
 
   if (!next) {
     return {
       kind: 'run-end',
-      title: 'All done',
-      body: `${pluralizeCycles(schedule.totalCycles)} · ${formatDurationLabel(schedule.totalDurationMs)} total`,
+      body: `All done · ${pluralizeCycles(schedule.totalCycles)} · ${formatDurationLabel(schedule.totalDurationMs)} total`,
     };
   }
 
   if (next.kind === 'rest') {
     return {
       kind: 'rest-start',
-      title: 'Time to rest',
-      body: `Cycle ${phase.cycle} of ${schedule.totalCycles} done · ${formatDurationLabel(next.durationMs)} rest`,
+      body: `Time to rest · Cycle ${phase.cycle} of ${schedule.totalCycles} done · ${formatDurationLabel(next.durationMs)} rest`,
     };
   }
 
   return {
     kind: 'work-start',
-    title: 'Back to work',
-    body: `Cycle ${next.cycle} of ${schedule.totalCycles} · ${formatDurationLabel(next.durationMs)}`,
+    body: `Back to work · Cycle ${next.cycle} of ${schedule.totalCycles} · ${formatDurationLabel(next.durationMs)}`,
   };
 }
 
 /**
- * The alerts still to come, in fire order, as absolute wall-clock times.
+ * The alerts still to come for one run, in fire order, as absolute wall-clock
+ * times.
  *
  * Boundaries at or before `elapsedMs` are omitted: the window that ends at the
  * current elapsed time has already been announced in-app, and scheduling a
  * notification for a moment that has passed would deliver it immediately.
+ *
+ * With several timers going, this is not the function that decides how many
+ * alerts a run actually gets — see `planRunAlerts` in `runs.ts`, which shares
+ * one budget across every running timer.
  */
 export function planAlerts({
   schedule,
+  runId,
+  name,
+  soundId,
   runStartedAtMs,
   elapsedMs,
   limit = MAX_PENDING_ALERTS,
@@ -116,9 +144,12 @@ export function planAlerts({
     if (alerts.length >= limit) break;
 
     alerts.push({
-      key: `phase-${phase.index}`,
+      key: `run-${runId}-phase-${phase.index}`,
+      runId,
       phaseIndex: phase.index,
       fireAtMs: runStartedAtMs + phase.endOffsetMs,
+      title: name,
+      soundId,
       ...describe(phase, schedule),
     });
   }

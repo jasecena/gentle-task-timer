@@ -10,10 +10,19 @@ const POMODORO: TimerConfig = {
   restDurationMs: 30_000,
   repeats: 3,
   vibrationMs: 3_000,
+  soundId: 'chime',
 };
 
 function plan(config: TimerConfig, elapsedMs = 0, limit?: number) {
-  return planAlerts({ schedule: buildSchedule(config), runStartedAtMs: RUN_START, elapsedMs, limit });
+  return planAlerts({
+    schedule: buildSchedule(config),
+    runId: 't1',
+    name: config.name,
+    soundId: config.soundId,
+    runStartedAtMs: RUN_START,
+    elapsedMs,
+    limit,
+  });
 }
 
 describe('planAlerts', () => {
@@ -39,23 +48,26 @@ describe('planAlerts', () => {
       'work-start',
       'run-end',
     ]);
-    expect(alerts[0]).toMatchObject({ title: 'Time to rest', body: 'Cycle 1 of 3 done · 30s rest' });
-    expect(alerts[1]).toMatchObject({ title: 'Back to work', body: 'Cycle 2 of 3 · 2m' });
-    expect(alerts[4]).toMatchObject({ title: 'All done', body: '3 cycles · 7m total' });
+    // The title is the timer's name, always: with several timers running it is
+    // the only thing on the banner that says which one this is.
+    expect(alerts.every((alert) => alert.title === 'Timer')).toBe(true);
+    expect(alerts[0]!.body).toBe('Time to rest · Cycle 1 of 3 done · 30s rest');
+    expect(alerts[1]!.body).toBe('Back to work · Cycle 2 of 3 · 2m');
+    expect(alerts[4]!.body).toBe('All done · 3 cycles · 7m total');
   });
 
   it('goes straight from work to work when rest is disabled', () => {
     const alerts = plan({ ...POMODORO, restDurationMs: 0 });
 
     expect(alerts.map((alert) => alert.kind)).toEqual(['work-start', 'work-start', 'run-end']);
-    expect(alerts[0]).toMatchObject({ title: 'Back to work', body: 'Cycle 2 of 3 · 2m' });
+    expect(alerts[0]!.body).toBe('Back to work · Cycle 2 of 3 · 2m');
   });
 
   it('produces a single run-end alert for a one-cycle run', () => {
     const alerts = plan({ ...POMODORO, repeats: 1 });
 
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]).toMatchObject({ kind: 'run-end', body: '1 cycle · 2m total' });
+    expect(alerts[0]).toMatchObject({ kind: 'run-end', body: 'All done · 1 cycle · 2m total' });
   });
 
   it('skips boundaries that have already passed', () => {
@@ -109,6 +121,39 @@ describe('planAlerts', () => {
   });
 
   it('refuses to plan without a usable run start', () => {
-    expect(planAlerts({ schedule: buildSchedule(POMODORO), runStartedAtMs: Number.NaN, elapsedMs: 0 })).toEqual([]);
+    expect(
+      planAlerts({
+        schedule: buildSchedule(POMODORO),
+        runId: 't1',
+        name: 'Timer',
+        soundId: 'default',
+        runStartedAtMs: Number.NaN,
+        elapsedMs: 0,
+      }),
+    ).toEqual([]);
+  });
+
+  it('namespaces every key by run, so two timers cannot cancel each other', () => {
+    // iOS treats a repeated identifier as a replace. Before the run id was in
+    // the key, starting a second timer silently wiped the first timer's alerts.
+    const first = plan(POMODORO).map((alert) => alert.key);
+    const second = planAlerts({
+      schedule: buildSchedule(POMODORO),
+      runId: 't2',
+      name: 'Other',
+      soundId: 'default',
+      runStartedAtMs: RUN_START,
+      elapsedMs: 0,
+    }).map((alert) => alert.key);
+
+    expect(first[0]).toBe('run-t1-phase-0');
+    expect(new Set([...first, ...second]).size).toBe(first.length + second.length);
+  });
+
+  it('carries the run id and its chosen voice onto every alert', () => {
+    const alerts = plan(POMODORO);
+
+    expect(alerts.every((alert) => alert.runId === 't1')).toBe(true);
+    expect(alerts.every((alert) => alert.soundId === 'chime')).toBe(true);
   });
 });

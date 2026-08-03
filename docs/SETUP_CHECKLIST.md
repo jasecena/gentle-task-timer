@@ -39,13 +39,13 @@ Must be globally unique and must match `IOS_BUNDLE_IDENTIFIER` exactly.
 
 - [ ] Enable capabilities — **only the ones your app actually uses**
 
-| Capability         | Enable when                                         |
-| ------------------ | --------------------------------------------------- |
-| Background Modes   | Audio playback, location, or BLE while backgrounded |
-| Location           | You read the user's location                        |
-| Push Notifications | **Remote** push from a server                       |
-| Associated Domains | Universal links / deep links                        |
-| HealthKit, etc.    | The corresponding framework is used                 |
+| Capability         | Enable when                                           |
+| ------------------ | ----------------------------------------------------- |
+| Background Modes   | Audio playback, location, or BLE while backgrounded   |
+| Location           | You read the user's location                          |
+| Push Notifications | **Remote** push, or bundled local-notification sounds |
+| Associated Domains | Universal links / deep links                          |
+| HealthKit, etc.    | The corresponding framework is used                   |
 
 > Enable nothing speculatively. Unused entitlements draw App Review questions,
 > require privacy-manifest justification, and on a public repository they are
@@ -54,6 +54,13 @@ Must be globally unique and must match `IOS_BUNDLE_IDENTIFIER` exactly.
 > **Local notifications need no capability at all** — that is the one people
 > most often over-request. If your app only schedules its own alerts, you do not
 > need Push Notifications.
+>
+> The exception, and it catches people out: bundling **custom sounds** for local
+> notifications requires the `expo-notifications` config plugin, which writes an
+> `aps-environment` entitlement. That entitlement does need the Push
+> Notifications capability, even with no server and no remote push anywhere in
+> the app. This project made that trade in v0.3; see
+> [GENTLE_TASK_TIMER_SETUP.md](GENTLE_TASK_TIMER_SETUP.md).
 
 - [ ] Certificates and provisioning profiles — **skip**
 

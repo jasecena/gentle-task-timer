@@ -4,7 +4,12 @@ import * as Notifications from 'expo-notifications';
 
 import { TabShell } from './TabShell';
 
-const notifications = Notifications as unknown as { __reset: () => void };
+const notifications = Notifications as unknown as {
+  __reset: () => void;
+  __pending: (tag?: string) => unknown[];
+};
+
+const TIMER = 'Gentle Task Timer';
 
 beforeEach(async () => {
   jest.clearAllMocks();
@@ -25,11 +30,12 @@ async function renderShell() {
 }
 
 describe('TabShell', () => {
-  it('opens on the timer', async () => {
+  it('opens on the timers, with all three modes reachable', async () => {
     await renderShell();
 
     expect(screen.getByText('READY')).toBeOnTheScreen();
-    expect(screen.getByLabelText('Timer tab')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Timers tab')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Once tab')).toBeOnTheScreen();
     expect(screen.getByLabelText('Schedule tab')).toBeOnTheScreen();
   });
 
@@ -41,18 +47,49 @@ describe('TabShell', () => {
     expect(screen.getByLabelText('Start schedule')).toBeOnTheScreen();
   });
 
-  it('keeps a running timer going while the schedule tab is open', async () => {
+  it('switches to the one-off tab', async () => {
     await renderShell();
 
-    await fireEvent.press(screen.getByLabelText('Start'));
+    await fireEvent.press(screen.getByLabelText('Once tab'));
+
+    expect(screen.getByLabelText('Add note')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Note')).toBeOnTheScreen();
+  });
+
+  it('keeps a running timer going while another tab is open', async () => {
+    await renderShell();
+
+    await fireEvent.press(screen.getByLabelText(`Start ${TIMER}`));
     await fireEvent.press(screen.getByLabelText('Schedule tab'));
     await act(async () => {
       jest.advanceTimersByTime(30_000);
     });
-    await fireEvent.press(screen.getByLabelText('Timer tab'));
+    await fireEvent.press(screen.getByLabelText('Timers tab'));
 
-    // Both screens stay mounted, so the run was never interrupted — half a
+    // Every screen stays mounted, so the run was never interrupted — half a
     // minute of a two-minute phase has gone.
     expect(screen.getByText('01:30')).toBeOnTheScreen();
+  });
+
+  /**
+   * The reason the shell knows anything at all. iOS holds 64 pending alerts
+   * app-wide, and all three features want slots; cancellation is tag-scoped so
+   * that none of them can wipe another's.
+   */
+  it('lets a note and a run hold their alerts at the same time', async () => {
+    await renderShell();
+
+    await fireEvent.press(screen.getByLabelText('Once tab'));
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Call the dentist');
+    await fireEvent.press(screen.getByLabelText('Add note'));
+    await act(async () => {});
+
+    await fireEvent.press(screen.getByLabelText('Timers tab'));
+    await fireEvent.press(screen.getByLabelText(`Start ${TIMER}`));
+    await act(async () => {});
+
+    // Five run boundaries plus the one note, all still pending.
+    expect(notifications.__pending('run')).toHaveLength(5);
+    expect(notifications.__pending('oneoff')).toHaveLength(1);
   });
 });

@@ -15,6 +15,21 @@ export { MAX_PENDING_ALERTS, planAlerts } from './alerts';
 export type { AlertKind, AlertPlanInput, PlannedAlert } from './alerts';
 
 export {
+  addRun,
+  createRun,
+  findRun,
+  MAX_RUNS,
+  nextRunId,
+  normalizeRuns,
+  planRunAlerts,
+  removeRun,
+  runningRuns,
+  uniqueRunName,
+  updateRun,
+} from './runs';
+export type { TimerRun } from './runs';
+
+export {
   createTimer,
   elapsedMsAt,
   isComplete,

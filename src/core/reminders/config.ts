@@ -1,8 +1,9 @@
 import { REMINDER_BUDGET } from '../alerts/budget';
+import { DEFAULT_SOUND_ID, normalizeSoundId } from '../alerts/sound';
 import { normalizeVibrationMs, VIBRATION_LIMITS } from '../alerts/vibration';
+import { clampMinute, isWeekday, MINUTES_PER_DAY, sortDays } from '../clock';
 import { countReminderSlots } from './plan';
-import { clampMinute, MINUTES_PER_DAY, sortDays } from './time';
-import type { ReminderConfig, Weekday } from './types';
+import type { ReminderConfig } from './types';
 
 /** Bounds for a schedule, and the reasons behind the unobvious ones. */
 export const REMINDER_LIMITS = {
@@ -24,16 +25,13 @@ export const DEFAULT_REMINDER_CONFIG: ReminderConfig = {
   endMinute: 17 * 60,
   days: [1, 2, 3, 4, 5],
   vibrationMs: 3_000,
+  soundId: DEFAULT_SOUND_ID,
 };
 
 export interface ReminderIssue {
   /** `budget` is not a field the user edits directly — it is a property of the whole config. */
   readonly field: keyof ReminderConfig | 'budget';
   readonly message: string;
-}
-
-function isWeekday(value: unknown): value is Weekday {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6;
 }
 
 /**
@@ -65,6 +63,10 @@ export function validateReminderConfig(config: ReminderConfig): ReminderIssue[] 
     issues.push({ field: 'vibrationMs', message: 'Vibration must be off, or at least 1 second.' });
   } else if (config.vibrationMs > VIBRATION_LIMITS.MAX_MS) {
     issues.push({ field: 'vibrationMs', message: 'Vibration cannot exceed 10 seconds.' });
+  }
+
+  if (normalizeSoundId(config.soundId) !== config.soundId) {
+    issues.push({ field: 'soundId', message: 'Unknown alert sound.' });
   }
 
   const slots = countReminderSlots(config);
@@ -110,5 +112,6 @@ export function normalizeReminderConfig(config: Partial<ReminderConfig> | null |
     endMinute: Math.max(startMinute, rawEnd),
     days: sortDays(Array.isArray(source.days) ? source.days.filter(isWeekday) : DEFAULT_REMINDER_CONFIG.days),
     vibrationMs: normalizeVibrationMs(source.vibrationMs ?? DEFAULT_REMINDER_CONFIG.vibrationMs),
+    soundId: normalizeSoundId(source.soundId),
   };
 }

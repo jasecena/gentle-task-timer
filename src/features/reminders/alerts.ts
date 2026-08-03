@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
+import { soundFileFor } from '@/core/alerts';
 import type { ReminderSlot } from '@/core/reminders';
 import { ALERT_TAGS, cancelScheduled, replaceScheduled } from '@/services/notifications';
 
@@ -27,7 +28,7 @@ function toRequest(slot: ReminderSlot): Notifications.NotificationRequestInput {
     content: {
       title: slot.title,
       body: slot.body,
-      sound: 'default',
+      sound: soundFileFor(slot.soundId) ?? 'default',
       interruptionLevel: 'active',
       data: { tag: ALERT_TAGS.reminder, weekday: slot.weekday, minuteOfDay: slot.minuteOfDay },
     },

@@ -20,7 +20,7 @@ describe('validateConfig', () => {
 
   it.each([
     ['zero work duration', { workDurationMs: 0 }],
-    ['sub-second work duration', { workDurationMs: 500 }],
+    ['a work duration under the 30s floor', { workDurationMs: 15_000 }],
     ['negative work duration', { workDurationMs: -1_000 }],
     ['work duration beyond 24h', { workDurationMs: LIMITS.MAX_WORK_MS + 1 }],
     ['fractional work duration', { workDurationMs: 1_500.5 }],
@@ -59,12 +59,20 @@ describe('validateConfig', () => {
   });
 
   it('reports every problem at once rather than stopping at the first', () => {
-    const issues = validateConfig({ name: '', workDurationMs: 0, restDurationMs: -1, repeats: 0, vibrationMs: 50 });
+    const issues = validateConfig({
+      name: '',
+      workDurationMs: 0,
+      restDurationMs: -1,
+      repeats: 0,
+      vibrationMs: 50,
+      soundId: 'nope',
+    });
 
     expect(issues.map((i) => i.field).sort()).toEqual([
       'name',
       'repeats',
       'restDurationMs',
+      'soundId',
       'vibrationMs',
       'workDurationMs',
     ]);

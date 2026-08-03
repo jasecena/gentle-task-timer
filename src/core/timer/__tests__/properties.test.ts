@@ -1,5 +1,7 @@
 import fc from 'fast-check';
 
+import { ALERT_SOUNDS } from '../../alerts/sound';
+
 import { LIMITS, normalizeConfig, validateConfig } from '../config';
 import { formatDuration, fromParts, toParts } from '../format';
 import { createTimer, elapsedMsAt, pause, project, reset, resume, settle, start } from '../machine';
@@ -31,6 +33,9 @@ const arbConfig = (maxRepeats = 20): fc.Arbitrary<TimerConfig> =>
     // Off and every on-setting: vibration never affects the timeline, and the
     // invariants below should keep holding whatever it is set to.
     vibrationMs: fc.oneof(fc.constant(0), fc.integer({ min: 1_000, max: 10_000 })),
+    // Likewise the voice: it changes what an alert sounds like and nothing
+    // about when one happens.
+    soundId: fc.constantFrom(...ALERT_SOUNDS.map((sound) => sound.id)),
   });
 
 describe('schedule invariants', () => {
@@ -342,6 +347,7 @@ describe('normalizeConfig', () => {
         expect(Number.isInteger(config.repeats)).toBe(true);
         expect(config.name.length).toBeGreaterThan(0);
         expect(config.name.length).toBeLessThanOrEqual(LIMITS.MAX_NAME_LENGTH);
+        expect(ALERT_SOUNDS.map((sound) => sound.id)).toContain(config.soundId);
       }),
     );
   });

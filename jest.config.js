@@ -9,6 +9,16 @@
  * Coverage thresholds are deliberately strict on `src/core` and absent
  * elsewhere: the engine is where bugs are expensive and testing is cheap.
  */
+// Set before Jest forks its workers, so they inherit it — assigning it inside a
+// setup file is too late, because the runtime has already resolved a timezone
+// by then.
+//
+// It matters because a one-off note is a *wall-clock* time: "Monday 09:00"
+// resolves against whatever zone the phone is in. Pinning the suite to UTC
+// makes `jest.setSystemTime` mean the same thing on a laptop in Sydney as it
+// does on a CI runner in Virginia.
+process.env.TZ = 'UTC';
+
 module.exports = {
   projects: [
     {
@@ -48,6 +58,8 @@ module.exports = {
   coverageThreshold: {
     './src/core/timer/': { branches: 90, functions: 100, lines: 95, statements: 95 },
     './src/core/reminders/': { branches: 90, functions: 100, lines: 95, statements: 95 },
+    './src/core/oneoffs/': { branches: 90, functions: 100, lines: 95, statements: 95 },
+    './src/core/clock/': { branches: 90, functions: 100, lines: 95, statements: 95 },
     './src/core/alerts/': { branches: 90, functions: 100, lines: 95, statements: 95 },
   },
   coverageReporters: ['text-summary', 'lcov'],
