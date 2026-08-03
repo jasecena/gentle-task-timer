@@ -133,6 +133,19 @@ jobs:
       # the pipeline on someone else's release schedule.
       MAESTRO_VERSION: '2.8.0'
       MAESTRO_SHA256: 'b3e561161904fb391875ca5834d5b22cf0b01c052dd1b408ad83e30d8f8951b3'
+      # Modest headroom over Maestro's 120s default, not a lot.
+      #
+      # Raising this was the first theory for the driver never connecting and it
+      # was wrong: at 300s the failure was identical, just slower — 491 failed
+      # connections across exactly five minutes instead of 199 across exactly
+      # two. Where the driver does come up it does so in about 25 seconds, so
+      # the extra budget only ever buys a slow-but-alive driver, which is worth
+      # a little and not much.
+      #
+      # It is kept *short* on purpose now that the step retries: every second
+      # over the real startup time is a second the loop spends waiting instead
+      # of getting to its next attempt, which is the thing that actually works.
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '150000'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -230,11 +243,68 @@ jobs:
 
       - name: Run smoke test
         run: |
-          set -euo pipefail
+          set -uo pipefail
           # Substituted rather than passed as a Maestro parameter, so the flow
           # file itself stays free of environment-specific values.
           sed "s|\${APP_ID}|${IOS_BUNDLE_IDENTIFIER}|g" .maestro/smoke.yaml > "$RUNNER_TEMP/smoke.yaml"
-          maestro --device "$SIM_UDID" test "$RUNNER_TEMP/smoke.yaml" --format junit --output "$RUNNER_TEMP/maestro-report.xml"
+
+          # Maestro's XCUITest driver fails to launch on roughly half of cold
+          # runs: `xcodebuild test-without-building` prints its destination
+          # warning and the runner app then never starts, so Maestro spends its
+          # whole startup budget failing to connect and the job dies having
+          # executed *zero* steps. A run where the driver does come up logs
+          # thousands of lines from the runner; a failed one logs six. It is not
+          # a timeout — raising the budget to five minutes changed nothing — and
+          # not a version mismatch, since the same Maestro and Xcode pass on
+          # other runs.
+          #
+          # So: retry, but only that. Retrying a *flow* failure would hide the
+          # thing this job exists to catch, so an attempt that got as far as
+          # executing a single command is final, pass or fail. Maestro writes
+          # commands.json per flow only once it starts running one, which is
+          # exactly the signal needed to tell the two apart.
+          # NOTE: GitHub runs this as `bash -e {0}`, so `-e` is already on and a
+          # `set -uo pipefail` here does not clear it. A bare `maestro ...` that
+          # exits non-zero would kill the step before any of the retry logic
+          # below — which is exactly what happened on the first attempt at this.
+          # Inside an `if` condition, a non-zero exit is data rather than death.
+          # Five, not three. The run that first went green needed all three of
+          # three — the driver failed twice and worked on the last try — so
+          # three attempts is not headroom, it is the exact number that
+          # happened to be enough once. A failed attempt now costs about two and
+          # a half minutes, so the extra two are cheap next to a false red on a
+          # release.
+          attempt=1
+          max_attempts=5
+
+          while true; do
+            rm -rf ~/.maestro/tests
+            echo "::group::Smoke attempt ${attempt} of ${max_attempts}"
+            if maestro --device "$SIM_UDID" test "$RUNNER_TEMP/smoke.yaml" \
+                 --format junit --output "$RUNNER_TEMP/maestro-report.xml"; then
+              echo "::endgroup::"
+              echo "Smoke passed on attempt ${attempt}."
+              break
+            fi
+            echo "::endgroup::"
+
+            if [[ -n "$(find ~/.maestro/tests -name commands.json 2>/dev/null)" ]]; then
+              echo "::error::Smoke flow ran and failed. This is the app or the flow, not the driver."
+              exit 1
+            fi
+
+            if [[ $attempt -ge $max_attempts ]]; then
+              echo "::error::XCUITest driver failed to start on all ${max_attempts} attempts; no step ever ran."
+              exit 1
+            fi
+
+            echo "Driver never started. Rebooting the simulator and retrying."
+            xcrun simctl shutdown "$SIM_UDID" || true
+            xcrun simctl boot "$SIM_UDID"
+            xcrun simctl bootstatus "$SIM_UDID" -b
+            xcrun simctl install "$SIM_UDID" "$APP_PATH"
+            attempt=$((attempt + 1))
+          done
 
       - name: Upload smoke test diagnostics
         if: ${{ always() }}

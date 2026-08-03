@@ -70,7 +70,10 @@ appId: ${APP_ID}
 # storage module and the text input, and a missing native module shows up as a
 # blank screen here rather than as a crash on launch.
 - tapOn: 'Schedule tab'
-- assertVisible: 'alerts a week'
+# The full string, like everything else here. "alerts a week" is a fragment of
+# the label "85 of 48 alerts a week", and fragment matching is what failed the
+# v0.3.0 and v0.3.1 releases. 85 is the default schedule: 17 a day, five days.
+- assertVisible: '85 of 48 alerts a week'
 - tapOn: 'Once tab'
 - assertVisible: '0 of 8 notes waiting'
 - tapOn: 'Timers tab'
