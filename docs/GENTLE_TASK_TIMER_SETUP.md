@@ -7,12 +7,15 @@ Repository visibility: **public**.
 
 **Remaining before a release can succeed:**
 
-1. Dry run with `submit_to_testflight` unchecked (Phase 6), then the real
+1. Reissue the App Store Connect API key with the **Admin** role (Phase 3), and
+   update the three `APP_STORE_CONNECT_*` secrets (Phase 4). An App Manager key
+   archives fine but cannot create the distribution certificate, so the export
+   fails with `Cloud signing permission error`.
+2. Dry run with `submit_to_testflight` unchecked (Phase 6), then the real
    upload.
 
-Everything else is in place. The release job now refuses to start on a
-placeholder or a malformed identifier, so a misconfigured credential fails in
-seconds rather than after the archive step.
+Everything else is in place. As of the last dry run the build archives, signs
+and passes archive validation; only the export step is blocked.
 
 ---
 
@@ -62,14 +65,19 @@ Primary language:  English (Australia)
 
 SKU and Bundle ID are permanent. Everything else is editable later.
 
-- [x] Users and Access → Integrations → App Store Connect API → Team Keys → **+**:
+- [ ] Users and Access → Integrations → App Store Connect API → Team Keys → **+**:
 
 ```
 Name:  github-actions-ci
-Role:  App Manager
+Role:  Admin
 ```
 
-- [x] Download the `.p8` (one download only) and record the **Key ID**
+Admin is required: cloud managed signing creates the distribution certificate,
+and App Manager may upload builds but not mint certificates. A key's role cannot
+be changed after creation, so an existing App Manager key must be revoked and
+replaced — the Key ID changes, so update the secrets in Phase 4 as well.
+
+- [ ] Download the `.p8` (one download only) and record the **Key ID**
       (10 characters) and the **Issuer ID** (UUID, from the top of the Keys page).
 
 ---
