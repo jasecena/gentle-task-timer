@@ -23,8 +23,15 @@ appId: ${APP_ID}
     clearState: true
 
 # --- Launched, and rendering the idle state ------------------------------
+#
+# The countdown is asserted by its FULL accessibility label, not by the bare
+# "02:00" on screen. A Text with an accessibilityLabel exposes only that label
+# to the accessibility tree, and matching a fragment of it is not something to
+# rely on — v0.3 added the timer's name to the front of that label and the
+# fragment match that had worked until then stopped matching, failing the
+# release on a flow bug rather than a real one.
 - assertVisible: 'READY'
-- assertVisible: '02:00'
+- assertVisible: 'Gentle Task Timer: 02:00 remaining'
 - assertVisible: 'Cycle 1 of 3'
 
 # --- Starting moves it into the work phase -------------------------------
@@ -41,10 +48,12 @@ appId: ${APP_ID}
 - assertVisible: 'WORK'
 - assertVisible: 'Pause Gentle Task Timer'
 
-# The clock is genuinely running, not just rendered once. Waiting for "02:00"
-# to *disappear* is deterministic — no fixed sleep, so no timing flake.
+# The clock is genuinely running, not just rendered once. Waiting for the
+# starting value to *disappear* is deterministic — no fixed sleep, so no timing
+# flake. Full label again, and it matters more here: a fragment that never
+# matches anything makes this assertion pass instantly and prove nothing.
 - extendedWaitUntil:
-    notVisible: '02:00'
+    notVisible: 'Gentle Task Timer: 02:00 remaining'
     timeout: 10000
 
 # --- Pausing holds position ----------------------------------------------
@@ -54,7 +63,7 @@ appId: ${APP_ID}
 # --- Reset returns to the initial state ----------------------------------
 - tapOn: 'Reset Gentle Task Timer'
 - assertVisible: 'READY'
-- assertVisible: '02:00'
+- assertVisible: 'Gentle Task Timer: 02:00 remaining'
 
 # --- The other tabs render -----------------------------------------------
 # Worth the extra seconds: these screens are what pull in the icon font, the
@@ -63,16 +72,27 @@ appId: ${APP_ID}
 - tapOn: 'Schedule tab'
 - assertVisible: 'alerts a week'
 - tapOn: 'Once tab'
-- assertVisible: 'notes waiting'
+- assertVisible: '0 of 8 notes waiting'
 - tapOn: 'Timers tab'
 - assertVisible: 'READY'
+- assertVisible: '1 of 8 · 0 running'
 
 # --- A second timer runs alongside the first -----------------------------
 # The feature that most needs a real device to trust: two runs, two sets of
 # pending notifications, no interference.
-- tapOn: 'Add timer'
+#
+# Order matters, and not for the reason it looks. Every control is labelled
+# with its timer's name, so "Start Gentle Task Timer" is a strict *prefix* of
+# "Start Gentle Task Timer 2" — tapping it with both timers on screen is
+# ambiguous. Starting the first while it is still the only one, then adding the
+# second, means every tap targets a label nothing else shares.
 - tapOn: 'Start Gentle Task Timer'
+- tapOn: 'Add timer'
 - tapOn: 'Start Gentle Task Timer 2'
-- assertVisible: 'Pause Gentle Task Timer'
-- assertVisible: 'Pause Gentle Task Timer 2'
 - assertVisible: '2 of 8 · 2 running'
+
+# Both still counting down, independently, from different start instants.
+- assertVisible: 'Pause Gentle Task Timer 2'
+- extendedWaitUntil:
+    notVisible: 'Gentle Task Timer 2: 02:00 remaining'
+    timeout: 10000
