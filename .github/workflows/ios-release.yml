@@ -75,7 +75,7 @@ jobs:
     timeout-minutes: 15
     if: ${{ !inputs.skip_verify }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Detect project kind
         id: kind
@@ -129,7 +129,7 @@ jobs:
       MAESTRO_VERSION: '2.8.0'
       MAESTRO_SHA256: 'b3e561161904fb391875ca5834d5b22cf0b01c052dd1b408ad83e30d8f8951b3'
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Select Xcode
         run: |
@@ -272,7 +272,7 @@ jobs:
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
 
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Fail fast on missing configuration
         # Secrets are passed through `env` and tested by name. Interpolating
