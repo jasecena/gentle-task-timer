@@ -4,44 +4,68 @@
 [![Security](https://github.com/jasecena/gentle-task-timer/actions/workflows/security.yml/badge.svg)](https://github.com/jasecena/gentle-task-timer/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A repeating interval timer for iPhone. Set a duration, a number of repeats and
-an optional rest between cycles; it counts down and alerts you at every
-boundary.
+Two ways to be nudged, on iPhone.
+
+**Timer** — a repeating interval run: a duration, a number of repeats and an
+optional rest between cycles. It counts down and alerts you at every boundary.
+
+**Schedule** — a standing arrangement: every 30 minutes, 09:00–17:00, weekdays.
+Nothing counts down and nothing needs the app open.
 
 Built and released entirely from Linux — no Mac at any point.
 
 ```
-┌─────────────────────┐
-│  Gentle Task Timer  │
-│ 7m total · 30s rest │
-│                     │
-│        WORK         │
-│       01:47         │
-│    Cycle 2 of 3     │
-│  ▓▓▓▓▓▓▓░░░░░░░░░░  │
-│  ▓▓▓▓▓▓▓▓▓▓░░░░░░░  │
-│                     │
-│   ┌─────────────┐   │
-│   │    Pause    │   │
-│   └─────────────┘   │
-│   ┌─────────────┐   │
-│   │    Reset    │   │
-│   └─────────────┘   │
-└─────────────────────┘
+┌─────────────────────┐   ┌─────────────────────┐
+│  Gentle Task Timer  │   │      Schedule       │
+│ 7m total · 30s rest │   │  Every 30m, Mon–Fri │
+│                     │   │                     │
+│        WORK         │   │  Every        30m   │
+│       01:47         │   │  From       09:00   │
+│    Cycle 2 of 3     │   │  Until      17:00   │
+│  ▓▓▓▓▓▓▓░░░░░░░░░░  │   │  Vibration     3s   │
+│  ▓▓▓▓▓▓▓▓▓▓░░░░░░░  │   │  S (M)(T)(W)(T)(F)S │
+│                     │   │                     │
+│   ┌─────────────┐   │   │  85 of 48 alerts/wk │
+│   │    Pause    │   │   │  17 a day × 5 days  │
+│   └─────────────┘   │   │                     │
+│   ┌─────────────┐   │   │   ┌─────────────┐   │
+│   │    Reset    │   │   │   │    Start    │   │
+│   └─────────────┘   │   │   └─────────────┘   │
+├─────────────────────┤   ├─────────────────────┤
+│   ⏱ Timer   📅 Sched │   │  ⏱ Timer  📅 Sched  │
+└─────────────────────┘   └─────────────────────┘
 ```
 
 ## Status
 
-v0.1 — the core is done and tested. Current scope:
+v0.1.0 is on TestFlight and installed. Current scope:
+
+**Timer**
 
 - [x] Named timer, work duration, repeat count, optional rest between cycles
 - [x] Start / pause / resume / reset
 - [x] Per-phase and whole-run progress
-- [x] Vibration alerts, distinct per phase kind
+- [x] A run survives force-quitting the app, and comes back where it should be
 - [x] Screen stays awake while running, releases when it stops
 - [x] Correct across backgrounding, JS stalls and wall-clock changes
-- [ ] Alert sounds
-- [ ] Local notifications (alerts when the app is not in the foreground)
+
+**Schedule**
+
+- [x] Repeat every N minutes inside a window, on chosen weekdays
+- [x] Keeps alerting with the app closed — weekly-repeating notifications, no
+      background execution
+- [x] Live alert count against the notification budget, with over-budget
+      schedules refused rather than silently truncated
+- [x] One-press stop
+
+**Alerts, both modes**
+
+- [x] Local notifications with sound, so boundaries reach you with the app
+      closed or the screen locked
+- [x] Vibration of a chosen length — off, 1s, 3s, 5s or 10s — with distinct
+      rhythms per alert kind. Foreground only; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [ ] Custom alert sounds (needs the notifications config plugin, which pulls in
+      a push entitlement — see `src/services/notifications.ts`)
 - [ ] Saved presets
 - [ ] Background audio session for true background operation
 
@@ -58,7 +82,7 @@ machine.
 
 ```bash
 npm run verify     # typecheck + lint + format check + tests. Run before pushing.
-npm test           # 86 tests, ~3s
+npm test           # 194 tests, ~3s
 npm run test:watch
 ```
 
@@ -93,16 +117,24 @@ An ESLint rule enforces the boundary — importing React or React Native under
 
 ```
 src/
-├── core/timer/           Pure TS engine. No platform imports. 90%+ covered.
-│   ├── types.ts          Domain types
-│   ├── config.ts         Validation + normalisation at trust boundaries
-│   ├── schedule.ts       Config -> timeline; phase lookup; boundary windows
-│   ├── machine.ts        State transitions + projection (all pure functions)
-│   └── format.ts         Duration formatting/parsing
-├── features/timer/       React layer
-│   ├── TimerScreen.tsx
-│   ├── components/       Presentational, driven entirely by the projection
-│   └── hooks/            useTimer binds the engine to React; keep-awake
+├── core/                 Pure TS. No platform imports. 90%+ covered.
+│   ├── timer/            The interval engine
+│   │   ├── types.ts      Domain types
+│   │   ├── config.ts     Validation + normalisation at trust boundaries
+│   │   ├── schedule.ts   Config -> timeline; phase lookup; boundary windows
+│   │   ├── machine.ts    State transitions, projection, restore (all pure)
+│   │   ├── alerts.ts     Timeline -> the notifications the OS should deliver
+│   │   └── format.ts     Duration formatting/parsing
+│   ├── reminders/        The scheduling mode: windows, weekdays, weekly slots
+│   └── alerts/           Vibration patterns + how the 64 slots are shared
+├── features/
+│   ├── timer/            Timer screen, its hooks and its alert requests
+│   └── reminders/        Schedule screen, its hooks and its alert requests
+├── services/
+│   ├── notifications.ts  The only file that talks to expo-notifications
+│   └── storage.ts        The only file that talks to AsyncStorage
+├── shell/TabShell.tsx    The two modes behind a bottom tab bar
+├── components/           Shared UI (StepperRow)
 └── theme/tokens.ts       Colours, spacing, type scale
 ```
 
@@ -121,8 +153,10 @@ More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Security
 
-The app makes **no network calls**, holds no keys and collects nothing. App
-Transport Security is fully enforced with no exception domains.
+The app makes **no network calls**, holds no keys and collects nothing. Your
+timer and schedule are stored in its own sandbox and never leave the device. App
+Transport Security is fully enforced with no exception domains, and the App ID
+carries **no capabilities or entitlements** — local notifications need none.
 
 The pipeline is where the real security work is: SHA-pinned actions with a CI
 check that enforces it, secrets passed via `env` rather than string

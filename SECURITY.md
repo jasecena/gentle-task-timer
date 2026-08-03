@@ -8,11 +8,17 @@ rather not post publicly, use GitHub's private vulnerability reporting
 
 ## Threat model
 
-The app is an offline timer. It makes no network requests, holds no credentials,
-stores no personal data and integrates no analytics or crash reporting. App
-Transport Security is enforced with no exception domains, and
-`ITSAppUsesNonExemptEncryption` is declared false because there is no
-encryption to declare.
+The app is an offline timer. It makes no network requests, holds no credentials
+and integrates no analytics or crash reporting. App Transport Security is
+enforced with no exception domains, and `ITSAppUsesNonExemptEncryption` is
+declared false because there is no encryption to declare.
+
+It stores two things on the device, in the app's own sandboxed AsyncStorage: the
+current timer run and the reminder schedule. Both are settings — durations,
+times of day, weekdays — with no personal data, no identifiers and no history of
+use. Nothing is ever transmitted, so the store is readable only by someone who
+already has the unlocked device. The app requests one permission,
+notifications, and no capability or entitlement at all.
 
 The realistic attack surface is therefore not the app — it is the **release
 pipeline**, which holds an App Store Connect key capable of publishing builds

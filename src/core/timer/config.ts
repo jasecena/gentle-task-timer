@@ -1,3 +1,4 @@
+import { normalizeVibrationMs, VIBRATION_LIMITS } from '../alerts/vibration';
 import type { TimerConfig } from './types';
 
 /** Hard bounds. These exist to keep a fat-fingered input from producing a schedule with millions of phases. */
@@ -22,6 +23,7 @@ export const DEFAULT_CONFIG: TimerConfig = {
   workDurationMs: 60_000,
   restDurationMs: 0,
   repeats: 1,
+  vibrationMs: 3_000,
 };
 
 export interface ValidationIssue {
@@ -75,6 +77,17 @@ export function validateConfig(config: TimerConfig): ValidationIssue[] {
     issues.push({ field: 'repeats', message: `Repeats cannot exceed ${LIMITS.MAX_REPEATS}.` });
   }
 
+  // Zero is valid: it means vibration is off. Anything between zero and the
+  // minimum is not, because a buzz shorter than a single system pulse is a
+  // setting the phone cannot honour.
+  if (!isFiniteInteger(config.vibrationMs)) {
+    issues.push({ field: 'vibrationMs', message: 'Vibration length must be a whole number of milliseconds.' });
+  } else if (config.vibrationMs !== VIBRATION_LIMITS.OFF_MS && config.vibrationMs < VIBRATION_LIMITS.MIN_ON_MS) {
+    issues.push({ field: 'vibrationMs', message: 'Vibration must be off, or at least 1 second.' });
+  } else if (config.vibrationMs > VIBRATION_LIMITS.MAX_MS) {
+    issues.push({ field: 'vibrationMs', message: 'Vibration cannot exceed 10 seconds.' });
+  }
+
   return issues;
 }
 
@@ -111,5 +124,6 @@ export function normalizeConfig(config: Partial<TimerConfig> | null | undefined)
       LIMITS.MAX_REST_MS,
     ),
     repeats: clamp(source.repeats ?? DEFAULT_CONFIG.repeats, LIMITS.MIN_REPEATS, LIMITS.MAX_REPEATS),
+    vibrationMs: normalizeVibrationMs(source.vibrationMs ?? DEFAULT_CONFIG.vibrationMs),
   };
 }

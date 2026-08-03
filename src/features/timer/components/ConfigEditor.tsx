@@ -1,7 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { StepperRow } from '@/components/StepperRow';
+import { formatVibrationLabel, stepVibrationMs, VIBRATION_LIMITS } from '@/core/alerts';
 import { LIMITS, formatDurationLabel, normalizeConfig, type TimerConfig } from '@/core/timer';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 
 interface Props {
   config: TimerConfig;
@@ -14,10 +16,8 @@ const WORK_STEP_MS = 30_000;
 const REST_STEP_MS = 15_000;
 
 /**
- * Steppers rather than free-text fields. On a phone they are faster, they
- * cannot produce a partially-typed invalid value, and every result is passed
- * through `normalizeConfig` regardless — so the config handed to the engine is
- * always in range.
+ * Every value here goes through `normalizeConfig` on the way out, so the config
+ * handed to the engine is always in range whatever the buttons do.
  */
 export function ConfigEditor({ config, onChange, disabled }: Props) {
   const update = (patch: Partial<TimerConfig>) => onChange(normalizeConfig({ ...config, ...patch }));
@@ -51,99 +51,22 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
         canDecrement={config.repeats > LIMITS.MIN_REPEATS}
         canIncrement={config.repeats < LIMITS.MAX_REPEATS}
       />
+      {/*
+        Editable mid-run, unlike the durations: changing how long the phone
+        buzzes cannot invalidate a schedule the run is already following.
+      */}
+      <StepperRow
+        label="Vibration"
+        value={formatVibrationLabel(config.vibrationMs)}
+        onDecrement={() => update({ vibrationMs: stepVibrationMs(config.vibrationMs, -1) })}
+        onIncrement={() => update({ vibrationMs: stepVibrationMs(config.vibrationMs, 1) })}
+        canDecrement={config.vibrationMs > VIBRATION_LIMITS.OFF_MS}
+        canIncrement={config.vibrationMs < VIBRATION_LIMITS.MAX_MS}
+      />
     </View>
-  );
-}
-
-interface StepperRowProps {
-  label: string;
-  value: string;
-  disabled: boolean;
-  canDecrement: boolean;
-  canIncrement: boolean;
-  onDecrement: () => void;
-  onIncrement: () => void;
-}
-
-function StepperRow({ label, value, disabled, canDecrement, canIncrement, onDecrement, onIncrement }: StepperRowProps) {
-  return (
-    <View style={[styles.row, disabled && styles.rowDisabled]}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <View style={styles.stepper}>
-        <StepperButton
-          symbol="−"
-          accessibilityLabel={`Decrease ${label}`}
-          disabled={disabled || !canDecrement}
-          onPress={onDecrement}
-        />
-        <Text style={styles.rowValue} accessibilityLabel={`${label}: ${value}`}>
-          {value}
-        </Text>
-        <StepperButton
-          symbol="+"
-          accessibilityLabel={`Increase ${label}`}
-          disabled={disabled || !canIncrement}
-          onPress={onIncrement}
-        />
-      </View>
-    </View>
-  );
-}
-
-function StepperButton({
-  symbol,
-  accessibilityLabel,
-  disabled,
-  onPress,
-}: {
-  symbol: string;
-  accessibilityLabel: string;
-  disabled: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled }}
-      hitSlop={8}
-      style={({ pressed }) => [
-        styles.stepperButton,
-        disabled && styles.disabled,
-        pressed && !disabled && styles.pressed,
-      ]}
-    >
-      <Text style={styles.stepperSymbol}>{symbol}</Text>
-    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: { width: '100%', gap: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  rowDisabled: { opacity: 0.45 },
-  rowLabel: { ...typography.body, color: colors.textSecondary },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  rowValue: { ...typography.body, color: colors.textPrimary, minWidth: 72, textAlign: 'center' },
-  stepperButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceRaised,
-  },
-  stepperSymbol: { fontSize: 22, lineHeight: 26, color: colors.textPrimary },
-  disabled: { opacity: 0.3 },
-  pressed: { opacity: 0.6 },
 });

@@ -118,7 +118,10 @@ APP_STORE_CONNECT_PRIVATE_KEY    (entire .p8 including BEGIN/END lines)
 - [ ] Create the `ios-release` **environment** (Settings → Environments)
   - [ ] Move the three `APP_STORE_CONNECT_*` secrets into it (tighter scoping)
   - [ ] Restrict deployment branches and tags to `v*`
-  - [ ] Optionally add yourself as a required reviewer
+  - [ ] Add yourself as a required reviewer, and turn admin bypass off
+  - [ ] Allow a branch (e.g. `main`) only for the first dry run, then remove it.
+        A pre-release tag such as `v0.1.1-rc1` matches the `v*` rule, so later
+        dry runs need no branch rule
 
 - [ ] Confirm Settings → Actions → General → **Fork pull request workflows** is
       at the default (require approval for first-time contributors)

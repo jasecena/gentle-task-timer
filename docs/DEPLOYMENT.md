@@ -22,7 +22,7 @@ anywhere in the loop.
 ```
 git tag v0.1.0 && git push origin v0.1.0
         │
-        ├─ CI verifies on Linux (lint, types, 86 tests)   ~40s
+        ├─ CI verifies on Linux (lint, types, 194 tests)   ~40s
         │
         └─ GitHub-hosted macOS runner:
              expo prebuild → pod install
@@ -159,6 +159,13 @@ These are not secret; they appear in build logs.
 | `IOS_BUNDLE_IDENTIFIER` | `com.yourname.lifetimer` | Step 3              |
 | `APPLE_TEAM_ID`         | `A1B2C3D4E5`             | Step 1              |
 
+Two optional variables change how the release runs:
+
+| Variable             | Effect                                                                         |
+| -------------------- | ------------------------------------------------------------------------------ |
+| `ENABLE_SMOKE_TEST`  | `true` runs the simulator smoke test on every release (~10 min of macOS)       |
+| `MACOS_RUNNER_LABEL` | Pins both macOS jobs to one image, e.g. `macos-15`. Defaults to `macos-latest` |
+
 ### Repository secrets
 
 **Settings → Secrets and variables → Actions → Secrets → New secret.**
@@ -200,9 +207,16 @@ the Apple credentials out of reach of pull requests from forks.
 1. **Settings → Environments → New environment** → `ios-release`.
 2. Add the three `APP_STORE_CONNECT_*` secrets _to the environment_ rather than
    to the repository, if you want them scoped as tightly as possible.
-3. Optionally add yourself as a **required reviewer**, so a release pauses for
-   approval before anything reaches Apple.
+3. Add yourself as a **required reviewer**, so a release pauses for approval
+   before anything reaches Apple, and turn **admin bypass off** — otherwise the
+   one account that can approve is also the one that can skip the gate.
 4. Restrict **deployment branches and tags** to `v*` tags.
+
+Allowing a branch such as `main` here is convenient for the very first dry run
+and worth removing afterwards: it is the difference between "a tagged release
+can reach Apple" and "anything that lands on the default branch can". Pre-release
+tags (`v0.1.1-rc1`) match both the `v*` rule and the workflow's tag trigger, so
+dry runs do not need a branch rule at all.
 
 ---
 

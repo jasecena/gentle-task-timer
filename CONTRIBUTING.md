@@ -22,7 +22,7 @@ except the release build works on Linux.
 ## Before opening a pull request
 
 ```bash
-npm run verify     # typecheck + lint + format + 86 tests
+npm run verify     # typecheck + lint + format + 194 tests
 ```
 
 CI runs the same thing, so if it passes locally it will pass there.
@@ -30,18 +30,35 @@ CI runs the same thing, so if it passes locally it will pass there.
 ## Conventions worth knowing
 
 **`src/core` is pure TypeScript.** No React, React Native or Expo imports — an
-ESLint rule enforces it. This is what lets the timer engine be tested on Linux
-with no simulator, and it is not negotiable.
+ESLint rule enforces it. This is what lets the engine be tested on Linux with no
+simulator, and it is not negotiable. Three domains live there: `timer` (a run
+you start), `reminders` (a standing schedule) and `alerts` (vibration patterns
+and the notification budget).
 
 **Never accumulate elapsed time.** Derive it from wall-clock timestamps. iOS
 suspends JS timers in the background, so a decrementing counter drifts and
 stops. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for why this shapes
 everything else.
 
-**Engine changes need tests.** `src/core/timer` has a coverage gate (90%
-branches, 100% functions) plus property-based tests in
+**Native modules live behind `src/services`.** `notifications.ts` and
+`storage.ts` are the only files that import `expo-notifications` and
+AsyncStorage. Everything read back out of storage is treated as untrusted input
+and passed through a `normalize*` function.
+
+**Notifications are tagged, and cancelled by tag.** The timer and the schedule
+share one pool of 64 pending notifications, so
+`cancelAllScheduledNotificationsAsync` would let one feature silently wipe the
+other's alerts. Use the helpers in `src/services/notifications.ts`.
+
+**Engine changes need tests.** Each core domain has a coverage gate (90%
+branches, 100% functions), plus property-based tests in
 `src/core/timer/__tests__/properties.test.ts`. If you add a behaviour, add the
 invariant.
+
+The platform constraints that shaped the current design — the 64-notification
+ceiling, why a long vibration only works in the foreground, why there is no
+notifications config plugin — are listed under "Settled decisions" in
+[AGENTS.md](AGENTS.md). Read those before changing how alerts work.
 
 **Never commit credentials.** `.gitignore` blocks the relevant patterns, a
 pre-commit hook runs gitleaks, and CI scans full history. Apple credentials

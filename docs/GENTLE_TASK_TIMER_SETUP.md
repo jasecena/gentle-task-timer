@@ -5,17 +5,15 @@ Generic template for the next project: [SETUP_CHECKLIST.md](SETUP_CHECKLIST.md).
 
 Repository visibility: **public**.
 
-**Remaining before a release can succeed:**
+**Status: shipped.** Tag `v0.1.0` built, uploaded and reached TestFlight;
+installed on device and running as expected. The pipeline needs no further
+setup.
 
-1. Reissue the App Store Connect API key with the **Admin** role (Phase 3), and
-   update the three `APP_STORE_CONNECT_*` secrets (Phase 4). An App Manager key
-   archives fine but cannot create the distribution certificate, so the export
-   fails with `Cloud signing permission error`.
-2. Dry run with `submit_to_testflight` unchecked (Phase 6), then the real
-   upload.
+**Remaining:**
 
-Everything else is in place. As of the last dry run the build archives, signs
-and passes archive validation; only the export step is blocked.
+1. Delete the local `.p8` (Phase 4).
+2. Releases are now tag-driven and gated on approval — see Phase 6 for the
+   sequence.
 
 ---
 
@@ -26,7 +24,7 @@ and passes archive validation; only the export step is blocked.
 - [x] Set your bundle identifier in `.env` (gitignored)
 - [x] Replace `assets/icon.png` (1024×1024, RGB, no alpha) — progress ring in
       the app's own palette. `assets/splash-icon.png` matches it
-- [x] Verify — `npm run verify` green, 86 tests, `expo-doctor` 20/20
+- [x] Verify — `npm run verify` green, 194 tests, `expo-doctor` 20/20
 
 ---
 
@@ -47,7 +45,8 @@ and passes archive validation; only the export step is blocked.
 com.<yourname>.lifetimer
 ```
 
-- [x] Capabilities: enable nothing.
+- [x] Capabilities: enable nothing. The local notifications added in v0.2 need
+      none; Push Notifications would only be required for remote push.
 
 ---
 
@@ -65,7 +64,7 @@ Primary language:  English (Australia)
 
 SKU and Bundle ID are permanent. Everything else is editable later.
 
-- [ ] Users and Access → Integrations → App Store Connect API → Team Keys → **+**:
+- [x] Users and Access → Integrations → App Store Connect API → Team Keys → **+**:
 
 ```
 Name:  github-actions-ci
@@ -77,7 +76,7 @@ and App Manager may upload builds but not mint certificates. A key's role cannot
 be changed after creation, so an existing App Manager key must be revoked and
 replaced — the Key ID changes, so update the secrets in Phase 4 as well.
 
-- [ ] Download the `.p8` (one download only) and record the **Key ID**
+- [x] Download the `.p8` (one download only) and record the **Key ID**
       (10 characters) and the **Issuer ID** (UUID, from the top of the Keys page).
 
 ---
@@ -102,9 +101,26 @@ APPLE_TEAM_ID            (value from .env)
 
 - [x] Settings → Environments → New → **`ios-release`**
   - [x] Deployment branches and tags → Selected → add rule `v*`
+  - [x] Tightened after the first release: `main` removed, required reviewer
+        added, admin bypass off. Only a `v*` tag can now reach the Apple
+        credentials, and every release waits for an approval in the Actions tab.
 
-> `main` is also permitted, which is what lets the Phase 6 dry run reach the
-> credentials via **Run workflow**. Remove it once releases are tag-driven.
+```bash
+# Drop the main rule (list ids first, then delete the one named "main")
+gh api repos/:owner/:repo/environments/ios-release/deployment-branch-policies
+gh api -X DELETE repos/:owner/:repo/environments/ios-release/deployment-branch-policies/<id>
+
+# Required reviewer, no admin bypass
+gh api -X PUT repos/:owner/:repo/environments/ios-release \
+  -F wait_timer=0 -F prevent_self_review=false -F can_admins_bypass=false \
+  -f 'reviewers[][type]=User' -F "reviewers[][id]=$(gh api user --jq .id)" \
+  -F 'deployment_branch_policy[protected_branches]=false' \
+  -F 'deployment_branch_policy[custom_branch_policies]=true'
+```
+
+> Dry runs move to pre-release tags — `v0.1.1-rc1` matches both the `v*`
+> environment rule and the workflow's tag trigger. A **Run workflow** from
+> `main` is now rejected at the environment gate.
 
 - [x] `ios-release` → **Environment secrets** → Add secret, three times:
 
@@ -169,16 +185,27 @@ gh api -X DELETE repos/:owner/:repo/branches/main/protection/enforce_admins
 
 - [x] Confirm CI is green on the first push (Actions tab).
 
-- [ ] Actions → iOS Release → Run workflow, **submit_to_testflight UNCHECKED**.
+- [x] Actions → iOS Release → Run workflow, **submit_to_testflight UNCHECKED**.
 
-- [ ] Re-run with **submit_to_testflight CHECKED**.
+- [x] Re-run with **submit_to_testflight CHECKED**.
 
-- [ ] Switch to tag-driven releases:
+- [x] Switch to tag-driven releases:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
+
+Every release from here:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+gh run watch                      # then approve the ios-release deployment
+```
+
+The run pauses at **Build & upload to TestFlight** until the deployment is
+approved (Actions → the run → Review deployments). Apple then processes the
+build for 5–30 minutes before it appears in TestFlight.
 
 - [ ] Optional: set repository variable `ENABLE_SMOKE_TEST=true`.
 
@@ -187,9 +214,10 @@ git push origin v0.1.0
 ## Phase 7 — Device testing
 
 - [x] Install TestFlight on your iPhone.
-- [ ] App Store Connect → Gentle Task Timer → TestFlight → Internal Testing →
+- [x] App Store Connect → Gentle Task Timer → TestFlight → Internal Testing →
       add yourself, accept the invite, install.
-- [ ] Start a 2-minute timer; confirm it counts down correctly.
+- [x] Start a 2-minute timer; confirm it counts down correctly.
+- [x] Vibration fires at a phase boundary.
 - [ ] Pause, wait a minute, resume — elapsed time must exclude the pause.
 - [ ] Background the app mid-run for 5+ minutes, reopen — must show the correct
       phase and remaining time.
@@ -198,4 +226,44 @@ git push origin v0.1.0
 - [ ] Airplane mode: identical behaviour.
 - [ ] Battery over a 30-minute session.
 
-v0.1 alerts are vibration only, foreground only.
+Notifications (from the next build on):
+
+- [ ] First **Start** shows the system permission prompt; allow it.
+- [ ] Background the app mid-phase — banner and sound arrive at the boundary.
+- [ ] Lock the screen mid-phase — same, on the lock screen.
+- [ ] Pause, wait past a boundary — no alert arrives.
+- [ ] Reset mid-run — no alert arrives afterwards.
+- [ ] Deny the prompt (Settings → Gentle Task Timer → Notifications off) — the
+      app says alerts only work while it is open, and still vibrates in the
+      foreground.
+- [ ] Focus mode on: alerts are silenced. This is expected — Time Sensitive
+      delivery needs an entitlement the App ID deliberately does not have.
+
+Vibration:
+
+- [ ] Set 10s and let a boundary pass with the app open — the phone buzzes in a
+      train for about ten seconds.
+- [ ] Press any control mid-buzz — it stops immediately.
+- [ ] Set Off — no buzz at a boundary, notification still arrives.
+- [ ] Confirm a buzz with the app **closed** is the standard single one. That is
+      the platform's limit, not a bug: a long buzz needs the app running.
+- [ ] Low Power Mode on — expect no haptics at all, again the platform's rule.
+
+Persistence:
+
+- [ ] Start a run, force-quit the app, reopen after two minutes — the run is
+      still going, two minutes further along.
+- [ ] The reopen must not fire a burst of buzzes for boundaries already passed.
+- [ ] Force-quit while paused — reopens paused, at the same position.
+
+Schedule tab:
+
+- [ ] Set every 30m, 09:00–17:00, Mon–Fri — the count reads 85 of 48 and Start
+      is disabled.
+- [ ] Widen to hourly — 45 of 48, Start enabled.
+- [ ] Arm it, force-quit the app, and confirm an alert still arrives at the next
+      slot.
+- [ ] Press Stop, wait past a slot — nothing arrives.
+- [ ] Arm a schedule, then start a timer run — both sets of alerts arrive; one
+      does not cancel the other.
+- [ ] Editing an armed schedule disarms it, and its pending alerts stop.

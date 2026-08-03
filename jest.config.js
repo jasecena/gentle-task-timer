@@ -43,8 +43,12 @@ module.exports = {
     },
   ],
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.test.{ts,tsx}', '!src/**/__tests__/**'],
+  // Every core domain is gated, not just the timer: `src/core` is the part that
+  // has to be correct, and it is the part that is cheap to test.
   coverageThreshold: {
     './src/core/timer/': { branches: 90, functions: 100, lines: 95, statements: 95 },
+    './src/core/reminders/': { branches: 90, functions: 100, lines: 95, statements: 95 },
+    './src/core/alerts/': { branches: 90, functions: 100, lines: 95, statements: 95 },
   },
   coverageReporters: ['text-summary', 'lcov'],
 };

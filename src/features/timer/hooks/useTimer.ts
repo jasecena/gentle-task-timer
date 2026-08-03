@@ -4,12 +4,14 @@ import { AppState, type AppStateStatus } from 'react-native';
 import {
   buildSchedule,
   createTimer,
+  elapsedMsAt,
   phasesEndingBetween,
   project,
   reset as resetTimer,
   settle,
   toggle as toggleTimer,
   type Phase,
+  type Schedule,
   type TimerConfig,
   type TimerProjection,
   type TimerState,
@@ -36,7 +38,11 @@ export interface UseTimer {
   state: TimerState;
   view: TimerProjection;
   config: TimerConfig;
+  /** The run's timeline, memoized on the config. Shared so callers do not rebuild it. */
+  schedule: Schedule;
   setConfig: (config: TimerConfig) => void;
+  /** Adopts a whole state, e.g. a run restored from disk. */
+  restore: (state: TimerState) => void;
   toggle: () => void;
   reset: () => void;
   isRunning: boolean;
@@ -122,6 +128,23 @@ export function useTimer(initialConfig: TimerConfig, options: UseTimerOptions = 
     setNow(Date.now());
   }, []);
 
+  /**
+   * Adopts a state wholesale — the restore path after a force-quit.
+   *
+   * The alert watermark is moved to the restored elapsed time rather than
+   * rewound to zero. Without that, the first tick after a restore would open a
+   * window of `(0, elapsed]` and fire an alert for every boundary the run has
+   * already passed: reopen a 20-minute-old run and the phone buzzes forty
+   * times.
+   */
+  const restore = useCallback((next: TimerState) => {
+    const instant = Date.now();
+    lastElapsedRef.current = elapsedMsAt(next, instant);
+    completedRef.current = false;
+    setState(next);
+    setNow(instant);
+  }, []);
+
   const toggle = useCallback(() => {
     const instant = Date.now();
     setState((prev) => {
@@ -141,5 +164,5 @@ export function useTimer(initialConfig: TimerConfig, options: UseTimerOptions = 
     setNow(Date.now());
   }, []);
 
-  return { state, view, config: state.config, setConfig, toggle, reset, isRunning: isTicking };
+  return { state, view, config: state.config, schedule, setConfig, restore, toggle, reset, isRunning: isTicking };
 }

@@ -33,6 +33,14 @@ export interface TimerConfig {
   readonly restDurationMs: number;
   /** How many work phases to run. Always >= 1. */
   readonly repeats: number;
+  /**
+   * How long the phone buzzes at a boundary, in ms. Zero turns vibration off.
+   *
+   * Only applies with the app in the foreground — a long buzz is a train of
+   * pulses driven from JavaScript, and iOS does not run JavaScript for a
+   * backgrounded app. See `src/core/alerts/vibration.ts`.
+   */
+  readonly vibrationMs: number;
 }
 
 /**

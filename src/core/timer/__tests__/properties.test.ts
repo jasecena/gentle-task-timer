@@ -28,6 +28,9 @@ const arbConfig = (maxRepeats = 20): fc.Arbitrary<TimerConfig> =>
     // changes the shape of the schedule rather than just a duration.
     restDurationMs: fc.oneof(fc.constant(0), fc.integer({ min: 1_000, max: 5 * 60_000 })),
     repeats: fc.integer({ min: LIMITS.MIN_REPEATS, max: maxRepeats }),
+    // Off and every on-setting: vibration never affects the timeline, and the
+    // invariants below should keep holding whatever it is set to.
+    vibrationMs: fc.oneof(fc.constant(0), fc.integer({ min: 1_000, max: 10_000 })),
   });
 
 describe('schedule invariants', () => {
