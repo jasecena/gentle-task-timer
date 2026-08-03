@@ -1,0 +1,43 @@
+# Gitleaks configuration.
+#
+# Extends the upstream default ruleset (AWS keys, GitHub tokens, private keys,
+# and ~150 others) and adds rules for the credential types specific to iOS
+# release engineering.
+
+title = "life-timer"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "app-store-connect-private-key"
+description = "App Store Connect API key (.p8). Must only ever exist in GitHub Secrets."
+regex = '''-----BEGIN PRIVATE KEY-----'''
+tags = ["apple", "credential"]
+
+[[rules]]
+id = "apple-provisioning-profile"
+description = "Embedded provisioning profile"
+regex = '''<key>ProvisionedDevices</key>'''
+tags = ["apple", "credential"]
+
+[[rules]]
+id = "apple-team-id-in-source"
+description = "Hard-coded Apple Team ID — belongs in repository variables, not source"
+regex = '''(?i)(team[_-]?id)['"\s:=]+[A-Z0-9]{10}\b'''
+tags = ["apple", "config"]
+
+[allowlist]
+description = "Paths that legitimately contain credential-shaped text"
+paths = [
+  # Documents the *names* of secrets and shows placeholder values.
+  '''docs/DEPLOYMENT\.md''',
+  '''\.env\.example''',
+  '''\.gitleaks\.toml''',
+  # Placeholder identifiers, never real ones.
+  '''\.github/workflows/.*\.yml''',
+]
+regexes = [
+  '''com\.example\.''',
+  '''ABCDE12345''',
+]

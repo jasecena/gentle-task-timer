@@ -1,0 +1,46 @@
+# Smoke test — does the built app actually launch and run?
+#
+# This is the only test that exercises the real binary on a real iOS runtime.
+# Jest can prove the timer logic is right; it cannot tell you the app crashes on
+# launch because of a native module, a missing asset or a bad Info.plist. That
+# is what this catches, and it runs before the TestFlight upload.
+#
+# Deliberately shallow. Deep UI assertions belong in the Jest component suite,
+# which is faster, runs on Linux and does not flake. This asserts only that the
+# app boots, the clock genuinely ticks, and the controls respond.
+#
+# NOTE: the literals below are tied to INITIAL_CONFIG in
+# src/features/timer/TimerScreen.tsx (2 minute work phase, 3 repeats). Change
+# that and this flow must change with it.
+#
+# ${APP_ID} is substituted by the CI job from vars.IOS_BUNDLE_IDENTIFIER.
+
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+
+# --- Launched, and rendering the idle state ------------------------------
+- assertVisible: 'READY'
+- assertVisible: '02:00'
+- assertVisible: 'Cycle 1 of 3'
+
+# --- Starting moves it into the work phase -------------------------------
+- tapOn: 'Start'
+- assertVisible: 'WORK'
+- assertVisible: 'Pause'
+
+# The clock is genuinely running, not just rendered once. Waiting for "02:00"
+# to *disappear* is deterministic — no fixed sleep, so no timing flake.
+- extendedWaitUntil:
+    notVisible: '02:00'
+    timeout: 10000
+
+# --- Pausing holds position ----------------------------------------------
+- tapOn: 'Pause'
+- assertVisible: 'Resume'
+
+# --- Reset returns to the initial state ----------------------------------
+- tapOn: 'Reset'
+- assertVisible: 'READY'
+- assertVisible: '02:00'

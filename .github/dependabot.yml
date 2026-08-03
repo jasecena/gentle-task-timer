@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Expo pins React Native, React and its own packages to versions that must
+    # move together; bumping one in isolation produces an app that will not
+    # build. `npx expo install --fix` is the correct way to move the SDK.
+    ignore:
+      - dependency-name: 'expo'
+      - dependency-name: 'expo-*'
+      - dependency-name: 'react'
+      - dependency-name: 'react-native'
+      - dependency-name: 'react-native-*'
+    groups:
+      dev-tooling:
+        patterns: ['eslint*', 'prettier*', 'jest*', '@testing-library/*', '@types/*', 'typescript']
+        update-types: ['minor', 'patch']
+
+  # Keeps the SHA pins in .github/workflows current. Without this, pinning
+  # actions to a SHA means never receiving their security fixes.
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
