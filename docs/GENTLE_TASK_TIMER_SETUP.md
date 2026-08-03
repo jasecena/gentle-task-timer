@@ -21,7 +21,7 @@ git config user.email "<id>+<username>@users.noreply.github.com"
 - [ ] Set your bundle identifier in `.env` (gitignored):
 
 ```bash
-IOS_BUNDLE_IDENTIFIER=com.<yourname>.gentletasktimer
+IOS_BUNDLE_IDENTIFIER=com.<yourname>.lifetimer
 ```
 
 - [ ] Replace `assets/icon.png` (1024×1024, RGB, no alpha).
@@ -50,7 +50,7 @@ git check-ignore -v .env
       App IDs → App → **Explicit**:
 
 ```
-com.<yourname>.gentletasktimer
+com.<yourname>.lifetimer
 ```
 
 - [ ] Capabilities: enable nothing.
@@ -97,7 +97,7 @@ back out and re-add it elsewhere.
       cannot read environment-scoped variables:
 
 ```
-IOS_BUNDLE_IDENTIFIER    com.<yourname>.gentletasktimer
+IOS_BUNDLE_IDENTIFIER    com.<yourname>.lifetimer
 APPLE_TEAM_ID            (value from .env)
 ```
 
