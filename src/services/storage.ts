@@ -17,9 +17,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const PREFIX = 'gentle-task-timer/v1/';
 
 export const STORAGE_KEYS = {
-  /** The whole run, config included — `TimerState` already carries it. */
-  timerRun: `${PREFIX}timer-run`,
+  /**
+   * Every timer, each with its whole run — `TimerState` already carries its
+   * config.
+   */
+  timerRuns: `${PREFIX}timer-runs`,
+  /**
+   * The single run written by v0.2 and earlier.
+   *
+   * Read once on first launch after upgrading and folded into the list, then
+   * never written again. Kept rather than dropped because the alternative is
+   * that anyone mid-run when they update loses it, which is exactly the moment
+   * the app is supposed to be trustworthy.
+   */
+  legacyTimerRun: `${PREFIX}timer-run`,
   reminders: `${PREFIX}reminders`,
+  oneoffs: `${PREFIX}oneoffs`,
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

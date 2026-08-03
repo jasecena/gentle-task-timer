@@ -9,13 +9,7 @@
  * Pure TypeScript, like everything under `src/core`.
  */
 
-/** Day of the week, `Date.getDay()` convention: 0 = Sunday. */
-export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-
-export const WEEKDAYS: readonly Weekday[] = [0, 1, 2, 3, 4, 5, 6];
-
-/** Minutes from midnight, 0..1439. Timezone-free by construction — it is a wall-clock time, not an instant. */
-export type MinuteOfDay = number;
+import type { MinuteOfDay, Weekday } from '../clock';
 
 export interface ReminderConfig {
   /** Whether the schedule is currently armed. Turning it off cancels every pending alert. */
@@ -34,6 +28,8 @@ export interface ReminderConfig {
    * iOS's own single buzz, which no setting can lengthen.
    */
   readonly vibrationMs: number;
+  /** Which bundled voice the alerts play. See `src/core/alerts/sound.ts`. */
+  readonly soundId: string;
 }
 
 /**
@@ -55,4 +51,6 @@ export interface ReminderSlot {
   readonly minute: number;
   readonly title: string;
   readonly body: string;
+  /** Bundled voice for this alert, from the schedule's config. */
+  readonly soundId: string;
 }

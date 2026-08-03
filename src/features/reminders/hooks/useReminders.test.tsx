@@ -22,6 +22,7 @@ const MONDAYS: ReminderConfig = {
   endMinute: 17 * 60,
   days: [1],
   vibrationMs: 3_000,
+  soundId: 'default',
 };
 
 beforeEach(async () => {

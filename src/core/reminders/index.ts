@@ -2,10 +2,12 @@
  * Public surface of the scheduling domain.
  *
  * UI code imports from `@/core/reminders` and never from the modules inside, so
- * the internals stay free to move.
+ * the internals stay free to move. The wall-clock helpers are re-exported from
+ * `@/core/clock`, which is where they moved once the one-off domain needed the
+ * same vocabulary — callers here were not affected by that.
  */
-export type { MinuteOfDay, ReminderConfig, ReminderSlot, Weekday } from './types';
-export { WEEKDAYS } from './types';
+export type { ReminderConfig, ReminderSlot } from './types';
+export type { MinuteOfDay, Weekday } from '../clock';
 
 export {
   DEFAULT_REMINDER_CONFIG,
@@ -28,4 +30,5 @@ export {
   MINUTES_PER_DAY,
   sortDays,
   toClockParts,
-} from './time';
+  WEEKDAYS,
+} from '../clock';

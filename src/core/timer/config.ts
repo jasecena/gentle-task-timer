@@ -1,10 +1,17 @@
+import { DEFAULT_SOUND_ID, normalizeSoundId } from '../alerts/sound';
 import { normalizeVibrationMs, VIBRATION_LIMITS } from '../alerts/vibration';
 import type { TimerConfig } from './types';
 
 /** Hard bounds. These exist to keep a fat-fingered input from producing a schedule with millions of phases. */
 export const LIMITS = {
-  /** One second. Anything shorter is not usefully perceivable as a phase. */
-  MIN_WORK_MS: 1_000,
+  /**
+   * Thirty seconds, which is also the step size.
+   *
+   * Shorter phases are not a useful chunk of work — they are a metronome, and
+   * one that spends the notification budget at a phase a second. The floor
+   * matching the step means the minimum is always reachable by pressing −.
+   */
+  MIN_WORK_MS: 30_000,
   /** 24 hours. */
   MAX_WORK_MS: 24 * 60 * 60 * 1_000,
   MIN_REST_MS: 0,
@@ -24,6 +31,7 @@ export const DEFAULT_CONFIG: TimerConfig = {
   restDurationMs: 0,
   repeats: 1,
   vibrationMs: 3_000,
+  soundId: DEFAULT_SOUND_ID,
 };
 
 export interface ValidationIssue {
@@ -56,7 +64,7 @@ export function validateConfig(config: TimerConfig): ValidationIssue[] {
   if (!isFiniteInteger(config.workDurationMs)) {
     issues.push({ field: 'workDurationMs', message: 'Work duration must be a whole number of milliseconds.' });
   } else if (config.workDurationMs < LIMITS.MIN_WORK_MS) {
-    issues.push({ field: 'workDurationMs', message: 'Work duration must be at least 1 second.' });
+    issues.push({ field: 'workDurationMs', message: 'Work duration must be at least 30 seconds.' });
   } else if (config.workDurationMs > LIMITS.MAX_WORK_MS) {
     issues.push({ field: 'workDurationMs', message: 'Work duration cannot exceed 24 hours.' });
   }
@@ -86,6 +94,13 @@ export function validateConfig(config: TimerConfig): ValidationIssue[] {
     issues.push({ field: 'vibrationMs', message: 'Vibration must be off, or at least 1 second.' });
   } else if (config.vibrationMs > VIBRATION_LIMITS.MAX_MS) {
     issues.push({ field: 'vibrationMs', message: 'Vibration cannot exceed 10 seconds.' });
+  }
+
+  // An id no longer in the list would be handed to iOS as a filename it cannot
+  // resolve, and a notification with an unresolvable sound is delivered in
+  // silence — which reads as a broken alert rather than a missing voice.
+  if (normalizeSoundId(config.soundId) !== config.soundId) {
+    issues.push({ field: 'soundId', message: 'Unknown alert sound.' });
   }
 
   return issues;
@@ -125,5 +140,6 @@ export function normalizeConfig(config: Partial<TimerConfig> | null | undefined)
     ),
     repeats: clamp(source.repeats ?? DEFAULT_CONFIG.repeats, LIMITS.MIN_REPEATS, LIMITS.MAX_REPEATS),
     vibrationMs: normalizeVibrationMs(source.vibrationMs ?? DEFAULT_CONFIG.vibrationMs),
+    soundId: normalizeSoundId(source.soundId),
   };
 }

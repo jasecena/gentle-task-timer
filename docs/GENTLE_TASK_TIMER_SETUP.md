@@ -45,8 +45,20 @@ setup.
 com.<yourname>.lifetimer
 ```
 
-- [x] Capabilities: enable nothing. The local notifications added in v0.2 need
-      none; Push Notifications would only be required for remote push.
+- [ ] Capabilities: enable **Push Notifications**. Required from v0.3 — the
+      bundled alert sounds need the `expo-notifications` config plugin, and that
+      plugin writes an `aps-environment` entitlement. Without the capability,
+      cloud signing cannot issue a profile and the release fails at
+      `-exportArchive`.
+
+```
+Identifiers -> com.<yourname>.lifetimer -> Capabilities
+[x] Push Notifications
+Save
+```
+
+- [ ] Nothing else. No key, no certificate, no APNs configuration — the app
+      sends no remote push and never contacts a server.
 
 ---
 
@@ -238,6 +250,28 @@ Notifications (from the next build on):
       foreground.
 - [ ] Focus mode on: alerts are silenced. This is expected — Time Sensitive
       delivery needs an entitlement the App ID deliberately does not have.
+
+Multiple timers:
+
+- [ ] Add a second timer, start both — both count down, each with its own name.
+- [ ] Pause one — the other keeps going.
+- [ ] Let a boundary pass on each — the banner names the timer that finished.
+- [ ] Force-quit mid-run and reopen — both come back where they should be.
+- [ ] Delete a timer mid-run — its alerts stop, the other timer's do not.
+
+One-off notes:
+
+- [ ] Add a note for a time two minutes away — it arrives once, with the note as
+      the banner title.
+- [ ] Reopen the app afterwards — the note is gone from the list.
+- [ ] Add a note, then delete it before it fires — nothing arrives.
+- [ ] Confirm a fired note stays in Notification Centre; a timer alert does not.
+
+Sound:
+
+- [ ] Set a timer to Chime, a note to Bell, the schedule to Marimba — each
+      alert plays its own voice, with the app closed.
+- [ ] Set one back to Default — the system sound returns.
 
 Vibration:
 

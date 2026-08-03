@@ -34,7 +34,7 @@ Everything else follows from this.
 
 ```
 ┌──────────────────────────────────────────┐
-│  shell           Two tabs, both mounted  │
+│  shell          Three tabs, all mounted  │
 ├──────────────────────────────────────────┤
 │  features/*      React components        │  Render a projection.
 │                  + their hooks           │  Hold no timing logic.
@@ -46,9 +46,17 @@ Everything else follows from this.
 ┌───────────────▼──────────────────────────┐
 │  core/timer      Pure TypeScript         │  All correctness lives here.
 │  core/reminders  No React. No RN.        │  Tested on plain Node.
+│  core/oneoffs    No clock. No entropy.   │
+│  core/clock                              │
 │  core/alerts                             │
 └──────────────────────────────────────────┘
 ```
+
+Two absences in `core` are worth naming, because they are what make it testable
+rather than merely tidy. It reads **no clock**: every function that needs to
+know the time takes it as an argument. And it uses **no entropy**: every id is
+derived from the ids already in use (`nextRunId`, `nextOneOffId`), so the same
+inputs always give the same output and a test never has to stub `Math.random`.
 
 The boundary is enforced by ESLint, not by convention — `no-restricted-imports`
 makes importing `react`, `react-native`, `expo*` or any UI module from
@@ -98,6 +106,29 @@ timestamps.
 `project(state, now, schedule)` derives everything the UI shows. The UI has no
 timing logic at all; it renders a value.
 
+### `runs.ts` — several timers, and why the engine did not change
+
+Parallel timers needed no change to any of the above, and that is the payoff for
+the machine being pure. A run was already two numbers plus a set of
+`(state, now) => state` functions, so N runs are a list of `{ id, state }` and
+one shared `now`. Nothing counts down, so nothing competes: eight timers cost
+eight projections per repaint and exactly one interval.
+
+What genuinely _is_ new is identity, and it earns its place three times over:
+
+- **Notification keys.** iOS treats a repeated identifier as a replace, so a key
+  of `phase-3` means the second timer's fourth boundary silently cancels the
+  first timer's. Keys are `run-<id>-phase-<n>`.
+- **Alert watermarks.** One per run, so each fires its own `(from, to]` windows.
+- **Ids are never reused.** `nextRunId` takes the highest in use and adds one,
+  so a deleted timer's still-pending notifications can never be adopted by its
+  replacement.
+
+The timer's **name** stopped being decoration at the same moment. It is now the
+title of every alert the run posts, because with three timers going it is the
+only thing on the banner that says which one just finished. `addRun` therefore
+refuses to create a second timer with the same default name.
+
 Two robustness details worth knowing:
 
 - **Backwards clock.** `Math.max(0, now - lastResumedAt)` guards against NTP
@@ -125,6 +156,12 @@ Two Jest projects, because the halves have genuinely different needs.
 | Transform     | TypeScript stripping only                | full RN preset  |
 | Runtime       | ~2s                                      | ~4s             |
 | Coverage gate | 90% branches, 100% functions, per domain | none            |
+
+The suite is pinned to **UTC** in `jest.config.js`, before Jest forks its
+workers — setting `process.env.TZ` in a setup file is too late, because the
+runtime has resolved a timezone by then. It matters because a one-off note is a
+wall-clock time, so without it `jest.setSystemTime` means a different weekday on
+a laptop in Sydney than on a CI runner in Virginia.
 
 The coverage threshold is deliberately asymmetric. In the engine, bugs are
 expensive and tests are cheap, so the bar is high. In the UI, tests are
@@ -205,28 +242,34 @@ directory and skips prebuild rather than clobbering it.
 
 ## Deliberate omissions
 
-- **No navigation library.** Two tabs need no router, no navigation state and no
-  native screen container. `src/shell/TabShell.tsx` is one file and adds nothing
-  to the build. Both screens stay mounted with the inactive one hidden — not an
-  optimisation, but so that glancing at the schedule tab does not throw away a
-  running countdown.
-- **No state management library.** Two hooks holding `useState`. Redux or
-  Zustand would be pure ceremony at this size. The schedule's state is lifted
-  into the shell only because the timer needs to know how many notification
-  slots it has left.
+- **No navigation library.** Three tabs need no router, no navigation state and
+  no native screen container. `src/shell/TabShell.tsx` is one file and adds
+  nothing to the build. Every screen stays mounted with the inactive ones hidden
+  — not an optimisation, but so that glancing at the schedule tab does not throw
+  away a running countdown.
+- **No state management library.** Three hooks holding `useState`. Redux or
+  Zustand would be pure ceremony at this size. The schedule's and the notes'
+  state are lifted into the shell only because the timers need to know how many
+  notification slots they have left.
+- **No `expo-audio` for alert sounds.** A foreground-only sound player was the
+  way to get custom sounds without the entitlement, and it would have been the
+  right answer if the entitlement were unacceptable. It is not: a sound played
+  from JavaScript cannot reach you with the app closed, which is precisely when
+  an alert matters most.
 
-## Two modes, one engine each
+## Three modes, one engine each
 
-The app does two different things, and they are different enough to deserve
+The app does three different things, and they are different enough to deserve
 separate domains rather than one flexible one.
 
-|             | Timer                            | Schedule                             |
-| ----------- | -------------------------------- | ------------------------------------ |
-| Models      | a run you start                  | a standing arrangement               |
-| Anchored to | an instant (`lastResumedAt`)     | wall-clock times (`09:00`, Tuesdays) |
-| Alerts      | dated, re-planned as it advances | weekly-repeating, scheduled once     |
-| Needs       | the app open to count down       | nothing at all                       |
-| Lives in    | `src/core/timer`                 | `src/core/reminders`                 |
+|             | Timers                           | Schedule                             | Once                              |
+| ----------- | -------------------------------- | ------------------------------------ | --------------------------------- |
+| Models      | runs you start                   | a standing arrangement               | a single note                     |
+| Anchored to | an instant (`lastResumedAt`)     | wall-clock times (`09:00`, Tuesdays) | the next Thursday at 15:00        |
+| Alerts      | dated, re-planned as it advances | weekly-repeating, scheduled once     | one calendar alert, non-repeating |
+| Needs       | the app open to count down       | nothing at all                       | nothing at all                    |
+| Ends        | when the last phase does         | never                                | the moment it fires               |
+| Lives in    | `src/core/timer`                 | `src/core/reminders`                 | `src/core/oneoffs`                |
 
 Trying to express "every 30 minutes between 9 and 5 on weekdays" as a timer run
 would mean a run that starts itself, which iOS does not permit — an app cannot
@@ -237,6 +280,35 @@ delivers it whether the app is open, closed or force-quit for a month.
 That is also why the reminders domain holds no dates. A slot is a weekday and a
 minute of the day, which is what makes it repeat forever; a list of dated alerts
 would silently run dry for anyone who had not opened the app in a while.
+
+### Why one-off notes hold no dates either
+
+A one-off looks like the one case that _should_ be a date, and it is not. It
+carries a weekday and a minute of the day, and goes to iOS as a **non-repeating
+calendar trigger** — `UNCalendarNotificationTrigger` with `repeats: false`. iOS
+resolves that to the next matching moment itself, in the phone's own local time.
+
+Three things fall out of that, all of them things the app would otherwise have
+to get right by hand:
+
+- **No date arithmetic anywhere.** A stored instant would be an hour wrong after
+  a daylight-saving change; "Sunday 09:00" stays 09:00 whatever the clocks do.
+- **No clock comparison to detect delivery.** A non-repeating notification
+  leaves the pending list the instant iOS delivers it, so `pruneFired` asks the
+  OS what it is still holding rather than comparing timestamps. That works for a
+  note that fired while the app was closed for a week, and cannot be fooled by
+  someone changing the device clock.
+- **Nothing to top up.** The note is scheduled once and then it is over.
+
+The one place arithmetic survives is `minutesUntilNext`, which produces the
+"in 3 days" on a list row. Getting that wrong costs a wrong label, not a missed
+reminder — and it is pure integer work on a 10,080-minute weekly grid, asserted
+by a property test.
+
+The shared vocabulary — `Weekday`, `MinuteOfDay`, `formatClock`, the weekly grid
+— lives in `src/core/clock` and belongs to no feature. It moved out of the
+reminders domain when the second and then the third feature needed the same
+words.
 
 ## Alerts: two paths, one boundary
 
@@ -260,37 +332,98 @@ are unit-testable on Linux. `src/services/notifications.ts` is the only file
 that imports `expo-notifications`, and `useTimerAlerts` re-plans whenever the
 timer state changes or the app is foregrounded.
 
-Two constraints shape it:
+One constraint shapes it throughout: **iOS holds at most 64 pending local
+notifications**, which is the subject of the next section but one.
 
-- **The `expo-notifications` config plugin writes an `aps-environment`
-  entitlement**, which would require the Push Notifications capability on the
-  App ID. The plugin is therefore deliberately _not_ in `app.config.ts`: local
-  notifications need no capability at all. The cost is that custom sound files
-  cannot be bundled, so alerts use the system default sound.
-- **iOS holds at most 64 pending local notifications**, which is the subject of
-  the next section.
+## Alert sounds, and what they cost
+
+Up to v0.2 every alert used the system sound, and the reason was an entitlement.
+A custom notification sound has to be a **file inside the app bundle** — iOS
+takes a filename, not a path or an asset reference — and the only supported way
+to get one there is the `expo-notifications` config plugin's `sounds` array.
+That plugin also writes an `aps-environment` entitlement, which means the App ID
+must carry the **Push Notifications capability** or cloud signing will not issue
+a matching provisioning profile.
+
+v0.2 judged that too high a price and shipped without it. v0.3 reversed the
+call, deliberately, and it is worth being precise about what actually changed:
+
+|                            | v0.2   | v0.3                           |
+| -------------------------- | ------ | ------------------------------ |
+| App ID capabilities        | none   | Push Notifications             |
+| Entitlements in the binary | none   | `aps-environment`              |
+| Remote push sent/received  | no     | **still no**                   |
+| APNs key                   | none   | **still none**                 |
+| Device token requested     | no     | **still no**                   |
+| Network calls              | none   | **still none**                 |
+| Alert sounds               | system | four bundled voices, or system |
+
+The entitlement exists to make the profile match the binary. Nothing about the
+app's behaviour or its network surface changed, which is the argument for the
+trade being an acceptable one — and the reason `SECURITY.md` now says "one
+entitlement, no remote push" rather than "no capability at all".
+
+Two smaller decisions inside it:
+
+- **The voices are synthesised**, by `scripts/make-alert-sounds.py` — additive
+  sine partials under an exponential decay, written as 16-bit PCM WAV. A
+  synthesised waveform has no licence, no attribution and no provenance question
+  at App Review. Regenerate rather than hand-editing the files.
+- **An unknown sound id falls back to the system sound**, in `normalizeSoundId`.
+  This matters more than it sounds: iOS delivers a notification whose sound file
+  it cannot resolve **silently**, so a stale id from an older build would read
+  as a broken alert rather than a missing voice.
+
+`interruptionLevel` stays `active`. Breaking through a Focus mode needs the
+_Time Sensitive Notifications_ entitlement, which is a separate one and is not
+granted by any of the above.
 
 ## The 64-notification budget
 
 iOS keeps at most **64 pending local notifications per app** and silently drops
-the rest. Not 64 per feature — 64 in total, and both modes want slots. Two
-consequences run through the code:
+the rest. Not 64 per feature — 64 in total, and all three modes want slots, as
+does each running timer. Three consequences run through the code:
 
 - **Cancellation is tag-scoped.** Every notification carries `data.tag` of
-  `run` or `reminder`, and each feature cancels only its own. A blunt
+  `run`, `reminder` or `oneoff`, and each feature cancels only its own. A blunt
   `cancelAllScheduledNotificationsAsync` would mean rescheduling a timer wipes a
   standing schedule — the kind of bug that surfaces days later as a reminder
   that never arrived.
 - **The ceiling is divided, in `src/core/alerts/budget.ts`.** A schedule may
-  claim up to 48; a run takes what is free (`runAlertBudget`), capped at 60 when
-  nothing else is pending. A run refills its window on every re-plan, so a
-  smaller share costs reach into the future rather than correctness. A schedule
-  cannot refill — it repeats forever — which is why it gets the fixed, smaller
-  allowance.
+  claim up to 48 and pending notes up to 8; running timers take what is free
+  (`runAlertBudget`), capped at 60 when nothing else is pending. Runs get the
+  leftovers because they are the only feature that can recover from a small
+  share: a run refills its window on every re-plan, so less budget costs reach
+  into the future rather than correctness. A schedule cannot refill — it repeats
+  forever — and a one-off gets exactly one chance.
+- **Running timers share that leftover between them, round-robin.**
 
 A schedule that would exceed its allowance is **refused, with the number shown**
 ("85 alerts a week. iPhone allows 48"). Silently scheduling 48 of 85 would look
-like it worked, right up until the afternoon alerts stopped.
+like it worked, right up until the afternoon alerts stopped. Notes are refused
+the same way, at the same point: before anything is scheduled.
+
+### Round-robin, not chronological
+
+`planRunAlerts` deals one alert to each running timer in turn, then goes round
+again, until the budget is spent. The obvious implementation — merge every
+timer's alerts, sort by fire time, take the first 60 — is wrong in a way that is
+easy to miss and hard to notice in use:
+
+```
+Timer A: 999 cycles of 1 minute   → boundaries at 1m, 2m, 3m … 999m
+Timer B: 1 cycle of 2 hours       → one boundary, at 120m
+
+chronological: A's first 60 boundaries fill the budget. B gets nothing,
+               and B is the one you cannot sit and watch.
+round-robin:   B's single boundary is dealt in the first pass.
+```
+
+The invariant worth stating: **every running timer gets its next boundary before
+any timer gets its second.** What is traded away is depth, which is the cheap
+side — the plan is rebuilt on every state change and every foreground, so a
+timer that only got seven boundaries this time gets seven more before it needs
+them.
 
 ## Vibration length
 
@@ -329,20 +462,30 @@ milliseconds and a resume timestamp — so restoring it is not a replay. Close t
 app twenty minutes into a run and it comes back twenty minutes further along,
 because elapsed time was never counted in the first place.
 
-Two details that would be bugs if missed:
+Three details that would be bugs if missed:
 
 - `normalizeState` degrades a run marked `running` with no resume timestamp to
   `paused` (there is nothing to measure from), and pins a _future_ timestamp to
   now (the clock moved backwards while the app was closed).
-- `restore` in `useTimer` moves the alert watermark to the restored elapsed
-  time. Rewinding it to zero would make the first tick after a restore open a
+- `useTimers` moves each restored run's alert watermark to its restored elapsed
+  time. Rewinding to zero would make the first tick after a restore open a
   window of `(0, elapsed]` and fire an alert for every boundary already passed —
   reopen a 20-minute-old run and the phone buzzes forty times.
+- `normalizeRuns` **reassigns a duplicate id** rather than dropping the run. Two
+  runs sharing an id share notification keys, and one would silently cancel the
+  other's alerts.
+
+v0.2 stored a single run under its own key. `useTimers` reads that key once, on
+first launch after the upgrade, and folds it into the list — anyone mid-run when
+they update comes back to it rather than to a fresh default.
 
 ## What comes next, and where it goes
 
-| Feature              | Where it lands                                                                           |
-| -------------------- | ---------------------------------------------------------------------------------------- |
-| Custom alert sounds  | The `expo-notifications` plugin's `sounds` array — read the entitlement note above first |
-| Background operation | `UIBackgroundModes: ['audio']` in `app.config.ts` + an audio session                     |
-| Saved presets        | `src/services/storage.ts` — persist `TimerConfig[]`, read back through `normalizeConfig` |
+| Feature                    | Where it lands                                                                            |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| Renaming a timer in the UI | `ConfigEditor` needs a text field; `normalizeConfig` already trims and truncates          |
+| Reordering timers          | `src/core/timer/runs.ts` — a pure `moveRun(runs, id, delta)`, the list is already ordered |
+| Per-timer sound preview    | `expo-audio` playing `assets/sounds/*.wav`; the bundled files are already there           |
+| Editing a pending note     | `useOneOffs` — cancel by key, re-plan; `planOneOff` is already idempotent on the key      |
+| Background operation       | `UIBackgroundModes: ['audio']` in `app.config.ts` + an audio session                      |
+| Saved presets              | `src/services/storage.ts` — persist `TimerConfig[]`, read back through `normalizeConfig`  |

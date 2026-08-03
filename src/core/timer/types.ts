@@ -25,7 +25,11 @@ export type TimerStatus = 'idle' | 'running' | 'paused' | 'completed';
  * work(2m) rest(30s) work(2m) rest(30s) work(2m) = 6m30s total.
  */
 export interface TimerConfig {
-  /** Display name, shown on screen and (later) in notification alerts. */
+  /**
+   * Display name, shown on screen and used as the *title* of every alert this
+   * run posts. With several timers running at once that title is the only thing
+   * telling you which one just finished, so it earns its place on the banner.
+   */
   readonly name: string;
   /** Duration of each main/work phase, in milliseconds. */
   readonly workDurationMs: number;
@@ -41,6 +45,14 @@ export interface TimerConfig {
    * backgrounded app. See `src/core/alerts/vibration.ts`.
    */
   readonly vibrationMs: number;
+  /**
+   * Which bundled voice this run's alerts play. See `src/core/alerts/sound.ts`.
+   *
+   * Unlike vibration, this one *does* reach you with the app closed: the sound
+   * is a property of the notification, so iOS plays it whether or not any
+   * JavaScript is running.
+   */
+  readonly soundId: string;
 }
 
 /**

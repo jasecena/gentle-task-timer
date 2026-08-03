@@ -1,5 +1,5 @@
-import { formatClock, sortDays, toClockParts } from './time';
-import type { MinuteOfDay, ReminderConfig, ReminderSlot } from './types';
+import { formatClock, sortDays, toClockParts, type MinuteOfDay } from '../clock';
+import type { ReminderConfig, ReminderSlot } from './types';
 
 /**
  * Expanding a schedule into the alerts it implies.
@@ -61,6 +61,7 @@ export function planReminders(config: ReminderConfig): ReminderSlot[] {
         ...toClockParts(minuteOfDay),
         title: 'Reminder',
         body: next === undefined ? 'Last one today' : `Next at ${formatClock(next)}`,
+        soundId: config.soundId,
       });
     });
   }
