@@ -133,6 +133,21 @@ jobs:
       # the pipeline on someone else's release schedule.
       MAESTRO_VERSION: '2.8.0'
       MAESTRO_SHA256: 'b3e561161904fb391875ca5834d5b22cf0b01c052dd1b408ad83e30d8f8951b3'
+      # Maestro gives the iOS XCUITest driver 120 seconds to come up and start
+      # listening, and a cold GitHub macOS runner sometimes needs longer. When
+      # it does not make it, the run fails having executed *zero* steps, which
+      # reads exactly like a broken flow and is not one.
+      #
+      # Measured rather than guessed: a failing run logged 199 connection
+      # attempts spanning precisely 13:58:46 to 14:00:46 before giving up, while
+      # a passing run on the same image connected after 47. The driver was not
+      # failing, it was slow.
+      #
+      # Five minutes is deliberately far more headroom than the gap observed. It
+      # costs nothing on a fast runner — the driver connects and the timeout is
+      # never reached — and only spends runner time in the case that would
+      # otherwise have wasted the whole job.
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '300000'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
