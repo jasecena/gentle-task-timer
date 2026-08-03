@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { SwipeToDelete } from '@/components/SwipeToDelete';
 import { describeOneOff, ONEOFF_LIMITS } from '@/core/oneoffs';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
@@ -65,21 +66,27 @@ export function OneOffsScreen({ oneoffs }: Props) {
       ) : (
         <View style={styles.list}>
           {oneoffs.oneoffs.map((oneoff) => (
-            <View key={oneoff.id} style={styles.row}>
-              <View style={styles.rowText}>
-                <Text style={styles.rowNote}>{oneoff.note}</Text>
-                <Text style={styles.rowWhen}>{describeOneOff(oneoff, now)}</Text>
+            <SwipeToDelete key={oneoff.id} onDelete={() => oneoffs.remove(oneoff.id)}>
+              <View style={styles.row}>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowNote}>{oneoff.note}</Text>
+                  <Text style={styles.rowWhen}>{describeOneOff(oneoff, now)}</Text>
+                </View>
+                {/*
+                  Kept alongside the swipe rather than replaced by it. A swipe
+                  is undiscoverable and a screen reader cannot perform one.
+                */}
+                <Pressable
+                  onPress={() => oneoffs.remove(oneoff.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete note: ${oneoff.note}`}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
+                >
+                  <Text style={styles.removeText}>Delete</Text>
+                </Pressable>
               </View>
-              <Pressable
-                onPress={() => oneoffs.remove(oneoff.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`Delete note: ${oneoff.note}`}
-                hitSlop={8}
-                style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
-              >
-                <Text style={styles.removeText}>Delete</Text>
-              </Pressable>
-            </View>
+            </SwipeToDelete>
           ))}
         </View>
       )}

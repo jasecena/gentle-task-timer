@@ -30,6 +30,8 @@ export interface ReminderConfig {
   readonly vibrationMs: number;
   /** Which bundled voice the alerts play. See `src/core/alerts/sound.ts`. */
   readonly soundId: string;
+  /** How long that voice rings for, in ms. */
+  readonly ringMs: number;
 }
 
 /**
@@ -53,4 +55,6 @@ export interface ReminderSlot {
   readonly body: string;
   /** Bundled voice for this alert, from the schedule's config. */
   readonly soundId: string;
+  /** How long it rings for, in ms. */
+  readonly ringMs: number;
 }

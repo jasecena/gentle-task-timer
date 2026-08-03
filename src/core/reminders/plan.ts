@@ -62,6 +62,7 @@ export function planReminders(config: ReminderConfig): ReminderSlot[] {
         title: 'Reminder',
         body: next === undefined ? 'Last one today' : `Next at ${formatClock(next)}`,
         soundId: config.soundId,
+        ringMs: config.ringMs,
       });
     });
   }

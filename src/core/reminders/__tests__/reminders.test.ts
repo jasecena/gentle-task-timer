@@ -16,6 +16,7 @@ const WEEKDAYS_9_TO_5: ReminderConfig = {
   days: [1, 2, 3, 4, 5],
   vibrationMs: 3_000,
   soundId: 'default',
+  ringMs: 1_500,
 };
 
 describe('reminderTimesOfDay', () => {

@@ -53,6 +53,11 @@ export interface TimerConfig {
    * JavaScript is running.
    */
   readonly soundId: string;
+  /**
+   * How long the chosen voice rings for, in ms. Only meaningful for a bundled
+   * voice — the system sound has one length and the silent entry has none.
+   */
+  readonly ringMs: number;
 }
 
 /**

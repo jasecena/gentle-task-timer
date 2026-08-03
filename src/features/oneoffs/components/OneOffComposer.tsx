@@ -1,16 +1,9 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AlertRows, type AlertSettings } from '@/components/AlertRows';
 import { DayRow } from '@/components/DayRow';
-import { StepperRow } from '@/components/StepperRow';
-import {
-  canStepSound,
-  formatSoundLabel,
-  formatVibrationLabel,
-  stepSoundId,
-  stepVibrationMs,
-  VIBRATION_LIMITS,
-} from '@/core/alerts';
-import { clampMinute, formatClock, MINUTES_PER_DAY, type Weekday } from '@/core/clock';
+import { TimeField } from '@/components/TimeField';
+import type { MinuteOfDay, Weekday } from '@/core/clock';
 import { normalizeOneOff, ONEOFF_LIMITS, type OneOff } from '@/core/oneoffs';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
@@ -19,17 +12,14 @@ interface Props {
   onChange: (draft: OneOff) => void;
 }
 
-/** Fifteen minutes: fine enough to say "quarter past", coarse enough to reach 9am in a few presses. */
-const TIME_STEP_MINUTES = 15;
-
 /**
  * Composing a note.
  *
- * The note itself is the only free-text field in the app. Everything else here
- * is a stepper over a bounded ladder, for the same reason as the other two
- * editors — on a phone they are faster, they cannot produce a half-typed
- * invalid value and they need no keyboard. The note has to be typed, because
- * the whole feature is "say something to yourself on Thursday".
+ * The note itself is the only free-text field in the app. Everything else is a
+ * picker or a stepper, for the same reason as the other two editors — on a
+ * phone they are faster, they cannot produce a half-typed invalid value and
+ * they need no keyboard. The note has to be typed, because the whole feature is
+ * "say something to yourself on Thursday".
  *
  * The day row is single-select: this fires once. Picking Thursday unpicks
  * whatever was chosen before, and the `radio` role is what tells a screen
@@ -60,30 +50,13 @@ export function OneOffComposer({ draft, onChange }: Props) {
       {/* A press replaces the day: a one-off happens once. */}
       <DayRow selected={[draft.weekday]} onPress={(day: Weekday) => update({ weekday: day })} role="radio" />
 
-      <StepperRow
+      <TimeField
         label="At"
-        value={formatClock(draft.minuteOfDay)}
-        onDecrement={() => update({ minuteOfDay: clampMinute(draft.minuteOfDay - TIME_STEP_MINUTES) })}
-        onIncrement={() => update({ minuteOfDay: clampMinute(draft.minuteOfDay + TIME_STEP_MINUTES) })}
-        canDecrement={draft.minuteOfDay > 0}
-        canIncrement={draft.minuteOfDay < MINUTES_PER_DAY - 1}
+        minuteOfDay={draft.minuteOfDay}
+        onChange={(minuteOfDay: MinuteOfDay) => update({ minuteOfDay })}
       />
-      <StepperRow
-        label="Vibration"
-        value={formatVibrationLabel(draft.vibrationMs)}
-        onDecrement={() => update({ vibrationMs: stepVibrationMs(draft.vibrationMs, -1) })}
-        onIncrement={() => update({ vibrationMs: stepVibrationMs(draft.vibrationMs, 1) })}
-        canDecrement={draft.vibrationMs > VIBRATION_LIMITS.OFF_MS}
-        canIncrement={draft.vibrationMs < VIBRATION_LIMITS.MAX_MS}
-      />
-      <StepperRow
-        label="Sound"
-        value={formatSoundLabel(draft.soundId)}
-        onDecrement={() => update({ soundId: stepSoundId(draft.soundId, -1) })}
-        onIncrement={() => update({ soundId: stepSoundId(draft.soundId, 1) })}
-        canDecrement={canStepSound(draft.soundId, -1)}
-        canIncrement={canStepSound(draft.soundId, 1)}
-      />
+
+      <AlertRows settings={draft} onChange={(patch: Partial<AlertSettings>) => update(patch)} />
     </View>
   );
 }

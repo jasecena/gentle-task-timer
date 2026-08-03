@@ -1,5 +1,5 @@
 import { ONEOFF_BUDGET } from '../alerts/budget';
-import { DEFAULT_SOUND_ID, normalizeSoundId } from '../alerts/sound';
+import { DEFAULT_SOUND_ID, normalizeRingMs, normalizeSoundId, RING_LIMITS } from '../alerts/sound';
 import { normalizeVibrationMs, VIBRATION_LIMITS } from '../alerts/vibration';
 import { clampMinute, normalizeWeekday } from '../clock';
 import type { OneOff } from './types';
@@ -22,6 +22,7 @@ export const DEFAULT_ONEOFF: OneOff = {
   weekday: 1,
   minuteOfDay: 9 * 60,
   soundId: DEFAULT_SOUND_ID,
+  ringMs: RING_LIMITS.SHORT_MS,
   vibrationMs: 3_000,
 };
 
@@ -66,6 +67,10 @@ export function validateOneOff(oneoff: OneOff, existingCount = 0): OneOffIssue[]
     issues.push({ field: 'soundId', message: 'Unknown alert sound.' });
   }
 
+  if (normalizeRingMs(oneoff.ringMs) !== oneoff.ringMs) {
+    issues.push({ field: 'ringMs', message: 'Ring length must be one of the offered options.' });
+  }
+
   return issues;
 }
 
@@ -90,6 +95,7 @@ export function normalizeOneOff(oneoff: Partial<OneOff> | null | undefined, fall
     weekday: normalizeWeekday(source.weekday, DEFAULT_ONEOFF.weekday),
     minuteOfDay: clampMinute(source.minuteOfDay ?? DEFAULT_ONEOFF.minuteOfDay),
     soundId: normalizeSoundId(source.soundId),
+    ringMs: normalizeRingMs(source.ringMs ?? DEFAULT_ONEOFF.ringMs),
     vibrationMs: normalizeVibrationMs(source.vibrationMs ?? DEFAULT_ONEOFF.vibrationMs),
   };
 }

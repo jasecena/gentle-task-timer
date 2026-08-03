@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
-import { soundFileFor } from '@/core/alerts';
+import { isSilentSound, soundFileFor } from '@/core/alerts';
 import type { OneOffSlot } from '@/core/oneoffs';
 import { ALERT_TAGS, cancelOne, pendingKeys, replaceScheduled } from '@/services/notifications';
 
@@ -34,7 +34,7 @@ function toRequest(slot: OneOffSlot): Notifications.NotificationRequestInput {
     content: {
       title: slot.title,
       body: slot.body,
-      sound: soundFileFor(slot.soundId) ?? 'default',
+      sound: isSilentSound(slot.soundId) ? undefined : (soundFileFor(slot.soundId, slot.ringMs) ?? 'default'),
       interruptionLevel: 'active',
       data: { tag: ALERT_TAGS.oneoff, oneOffId: slot.oneOffId },
     },

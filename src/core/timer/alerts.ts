@@ -56,6 +56,8 @@ export interface PlannedAlert {
   readonly body: string;
   /** Bundled voice for this alert, from the run's config. */
   readonly soundId: string;
+  /** How long that voice rings for, in ms. */
+  readonly ringMs: number;
 }
 
 export interface AlertPlanInput {
@@ -66,6 +68,8 @@ export interface AlertPlanInput {
   readonly name: string;
   /** Which bundled voice the alerts play. */
   readonly soundId: string;
+  /** How long that voice rings for, in ms. */
+  readonly ringMs: number;
   /**
    * Epoch ms corresponding to elapsed time zero for the current run, i.e.
    * `lastResumedAt - accumulatedMs`. Pauses move it forward, which is exactly
@@ -130,6 +134,7 @@ export function planAlerts({
   runId,
   name,
   soundId,
+  ringMs,
   runStartedAtMs,
   elapsedMs,
   limit = MAX_PENDING_ALERTS,
@@ -150,6 +155,7 @@ export function planAlerts({
       fireAtMs: runStartedAtMs + phase.endOffsetMs,
       title: name,
       soundId,
+      ringMs,
       ...describe(phase, schedule),
     });
   }

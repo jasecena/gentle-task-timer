@@ -23,6 +23,8 @@ export interface OneOff {
   readonly minuteOfDay: MinuteOfDay;
   /** Which bundled voice it plays. See `src/core/alerts/sound.ts`. */
   readonly soundId: string;
+  /** How long that voice rings for, in ms. */
+  readonly ringMs: number;
   /**
    * How long the phone buzzes if it arrives while the app is open, in ms.
    * With the app closed, iOS gives its own single buzz and no setting changes
@@ -45,4 +47,5 @@ export interface OneOffSlot {
   readonly title: string;
   readonly body: string;
   readonly soundId: string;
+  readonly ringMs: number;
 }

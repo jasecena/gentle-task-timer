@@ -1,4 +1,5 @@
-import { DEFAULT_SOUND_ID, normalizeSoundId } from '../alerts/sound';
+import { restFloorMs } from '../alerts/duration';
+import { DEFAULT_SOUND_ID, normalizeRingMs, normalizeSoundId, RING_LIMITS } from '../alerts/sound';
 import { normalizeVibrationMs, VIBRATION_LIMITS } from '../alerts/vibration';
 import type { TimerConfig } from './types';
 
@@ -32,6 +33,7 @@ export const DEFAULT_CONFIG: TimerConfig = {
   repeats: 1,
   vibrationMs: 3_000,
   soundId: DEFAULT_SOUND_ID,
+  ringMs: RING_LIMITS.SHORT_MS,
 };
 
 export interface ValidationIssue {
@@ -103,6 +105,21 @@ export function validateConfig(config: TimerConfig): ValidationIssue[] {
     issues.push({ field: 'soundId', message: 'Unknown alert sound.' });
   }
 
+  if (normalizeRingMs(config.ringMs) !== config.ringMs) {
+    issues.push({ field: 'ringMs', message: 'Ring length must be one of the offered options.' });
+  }
+
+  // A rest shorter than the alert announcing it is not a rest — the noise is
+  // still going when the next work phase starts. normalizeConfig lifts it, so
+  // this only fires for a config that never went through there.
+  const floor = restFloorMs(config.restDurationMs, config);
+  if (config.restDurationMs > 0 && config.restDurationMs < floor) {
+    issues.push({
+      field: 'restDurationMs',
+      message: `Rest must be at least as long as the alert (${Math.round(floor / 1_000)}s).`,
+    });
+  }
+
   return issues;
 }
 
@@ -126,6 +143,10 @@ export function normalizeConfig(config: Partial<TimerConfig> | null | undefined)
   const rawName = typeof source.name === 'string' ? source.name.trim() : '';
   const name = rawName.length === 0 ? DEFAULT_CONFIG.name : rawName.slice(0, LIMITS.MAX_NAME_LENGTH);
 
+  const soundId = normalizeSoundId(source.soundId);
+  const ringMs = normalizeRingMs(source.ringMs ?? DEFAULT_CONFIG.ringMs);
+  const vibrationMs = normalizeVibrationMs(source.vibrationMs ?? DEFAULT_CONFIG.vibrationMs);
+
   return {
     name,
     workDurationMs: clamp(
@@ -133,13 +154,16 @@ export function normalizeConfig(config: Partial<TimerConfig> | null | undefined)
       LIMITS.MIN_WORK_MS,
       LIMITS.MAX_WORK_MS,
     ),
-    restDurationMs: clamp(
-      source.restDurationMs ?? DEFAULT_CONFIG.restDurationMs,
-      LIMITS.MIN_REST_MS,
-      LIMITS.MAX_REST_MS,
+    // Lifted to the alert's length when there is a rest at all, so an alert can
+    // never eat the whole of it. Zero stays zero — that is "no rest phase",
+    // not "a very short one".
+    restDurationMs: restFloorMs(
+      clamp(source.restDurationMs ?? DEFAULT_CONFIG.restDurationMs, LIMITS.MIN_REST_MS, LIMITS.MAX_REST_MS),
+      { vibrationMs, soundId, ringMs },
     ),
     repeats: clamp(source.repeats ?? DEFAULT_CONFIG.repeats, LIMITS.MIN_REPEATS, LIMITS.MAX_REPEATS),
-    vibrationMs: normalizeVibrationMs(source.vibrationMs ?? DEFAULT_CONFIG.vibrationMs),
-    soundId: normalizeSoundId(source.soundId),
+    vibrationMs,
+    soundId,
+    ringMs,
   };
 }

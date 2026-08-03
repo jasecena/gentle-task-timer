@@ -1,3 +1,4 @@
+import * as DateTimePicker from '@react-native-community/datetimepicker';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { DEFAULT_REMINDER_CONFIG, validateReminderConfig, type ReminderConfig } from '@/core/reminders';
@@ -114,5 +115,51 @@ describe('RemindersScreen', () => {
     await fireEvent.press(screen.getByLabelText('Decrease Vibration'));
 
     expect(state.setConfig).toHaveBeenCalledWith(expect.objectContaining({ vibrationMs: 0 }));
+  });
+});
+
+describe('the time pickers', () => {
+  const picker = DateTimePicker as unknown as {
+    __reset: () => void;
+    __setTime: (label: string, hours: number, minutes: number) => void;
+    __timeOf: (label: string) => string | undefined;
+  };
+
+  beforeEach(() => {
+    picker.__reset();
+  });
+
+  it('shows the window on both wheels, not just the start', async () => {
+    await render(<RemindersScreen reminders={reminders()} />);
+
+    expect(picker.__timeOf('From')).toBe('09:00');
+    expect(picker.__timeOf('Until')).toBe('17:00');
+  });
+
+  it('reports a picked start time back as a minute of the day', async () => {
+    const state = reminders();
+    await render(<RemindersScreen reminders={state} />);
+
+    await fireEvent(screen.getByLabelText('From'), 'layout');
+    picker.__setTime('From', 7, 45);
+
+    expect(state.setConfig).toHaveBeenCalledWith(expect.objectContaining({ startMinute: 7 * 60 + 45 }));
+  });
+
+  it('reports a picked end time too', async () => {
+    const state = reminders();
+    await render(<RemindersScreen reminders={state} />);
+
+    picker.__setTime('Until', 21, 30);
+
+    expect(state.setConfig).toHaveBeenCalledWith(expect.objectContaining({ endMinute: 21 * 60 + 30 }));
+  });
+
+  it('locks both wheels while the schedule is armed', async () => {
+    await render(<RemindersScreen reminders={reminders({ enabled: true })} />);
+
+    // Editing an armed schedule would leave its pending alerts describing the
+    // old arrangement, so the whole editor locks until it is stopped.
+    expect(screen.getByLabelText('Increase Every')).toBeDisabled();
   });
 });

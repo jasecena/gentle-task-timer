@@ -23,6 +23,17 @@ import wave
 from pathlib import Path
 
 SAMPLE_RATE = 44_100
+
+# The long ring is eight times the length, so it is written at half the rate to
+# keep the bundle sane. A notification chime has nothing above ~8kHz in it, so
+# 22.05kHz costs nothing audible and halves every long file.
+LONG_SAMPLE_RATE = 22_050
+
+# How long the "10s" ring setting actually rings. iOS plays a custom
+# notification sound to its end and gives no way to stop it early, so this is
+# also the longest anyone has to sit through one.
+LONG_RING_S = 10.0
+
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds"
 
 # Long enough to breathe, short enough that a run of three cycles does not feel
@@ -71,48 +82,88 @@ VOICES: dict[str, list[dict]] = {
 }
 
 
-def render(voice: list[dict]) -> list[float]:
-    total_s = max(n["start"] + n["length"] for n in voice)
-    frames = int(total_s * SAMPLE_RATE)
+def render(voice: list[dict], rate: int, total_s: float | None = None, repeat_every_s: float | None = None):
+    """
+    One pass of the motif, or the motif repeated to fill `total_s`.
+
+    Repeating with a gap rather than stretching one long tone is deliberate: a
+    ten-second continuous chime is unpleasant and reads as a fault, while the
+    same motif recurring reads as "still ringing" and stays recognisably the
+    same voice as its short version.
+    """
+    motif_s = max(n["start"] + n["length"] for n in voice)
+    span_s = total_s if total_s is not None else motif_s
+    frames = int(span_s * rate)
     buffer = [0.0] * frames
 
-    for n in voice:
-        offset = int(n["start"] * SAMPLE_RATE)
-        length = int(n["length"] * SAMPLE_RATE)
-        weight = sum(amp for _, amp in n["partials"])
+    period_s = repeat_every_s if repeat_every_s is not None else span_s
+    starts = [0.0]
+    if total_s is not None:
+        starts = []
+        cursor = 0.0
+        while cursor < total_s:
+            starts.append(cursor)
+            cursor += period_s
 
-        for i in range(length):
-            if offset + i >= frames:
-                break
-            t = i / SAMPLE_RATE
-            # Exponential decay, plus a raised-cosine attack so the onset does
-            # not click, and a linear taper so the tail does not either.
-            envelope = math.exp(-n["decay"] * t)
-            if t < ATTACK_S:
-                envelope *= 0.5 - 0.5 * math.cos(math.pi * t / ATTACK_S)
-            envelope *= min(1.0, (length - i) / (0.01 * SAMPLE_RATE))
+    for base in starts:
+        for n in voice:
+            offset = int((base + n["start"]) * rate)
+            length = int(n["length"] * rate)
+            weight = sum(amp for _, amp in n["partials"])
 
-            sample = sum(amp * math.sin(2 * math.pi * n["freq"] * mult * t) for mult, amp in n["partials"])
-            buffer[offset + i] += envelope * sample / weight
+            for i in range(length):
+                if offset + i >= frames:
+                    break
+                t = i / rate
+                # Exponential decay, plus a raised-cosine attack so the onset
+                # does not click, and a linear taper so the tail does not either.
+                envelope = math.exp(-n["decay"] * t)
+                if t < ATTACK_S:
+                    envelope *= 0.5 - 0.5 * math.cos(math.pi * t / ATTACK_S)
+                envelope *= min(1.0, (length - i) / (0.01 * rate))
+
+                sample = sum(amp * math.sin(2 * math.pi * n["freq"] * mult * t) for mult, amp in n["partials"])
+                buffer[offset + i] += envelope * sample / weight
+
+    # A short fade at the very end, so a repeat cut off mid-decay does not click.
+    fade = int(0.02 * rate)
+    for i in range(min(fade, frames)):
+        buffer[frames - 1 - i] *= i / fade
 
     peak = max(abs(s) for s in buffer) or 1.0
     return [s * PEAK / peak for s in buffer]
 
 
-def write_wav(path: Path, samples: list[float]) -> None:
+def write_wav(path: Path, samples: list[float], rate: int) -> None:
     with wave.open(str(path), "wb") as out:
         out.setnchannels(1)
         out.setsampwidth(2)
-        out.setframerate(SAMPLE_RATE)
+        out.setframerate(rate)
         out.writeframes(b"".join(struct.pack("<h", int(max(-1.0, min(1.0, s)) * 32767)) for s in samples))
 
 
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    total = 0
     for name, voice in VOICES.items():
-        path = OUTPUT_DIR / f"{name}.wav"
-        write_wav(path, render(voice))
-        print(f"{path.relative_to(OUTPUT_DIR.parent.parent)}  {path.stat().st_size / 1024:.0f} KB")
+        motif_s = max(n["start"] + n["length"] for n in voice)
+
+        short = OUTPUT_DIR / f"{name}.wav"
+        write_wav(short, render(voice, SAMPLE_RATE), SAMPLE_RATE)
+
+        # A breath between repeats, never shorter than the motif itself.
+        long = OUTPUT_DIR / f"{name}-10s.wav"
+        write_wav(
+            long,
+            render(voice, LONG_SAMPLE_RATE, total_s=LONG_RING_S, repeat_every_s=max(motif_s, 0.6) + 0.35),
+            LONG_SAMPLE_RATE,
+        )
+
+        for path in (short, long):
+            size = path.stat().st_size
+            total += size
+            print(f"{path.relative_to(OUTPUT_DIR.parent.parent)}  {size / 1024:.0f} KB")
+    print(f"total  {total / 1024 / 1024:.2f} MB")
 
 
 if __name__ == "__main__":
