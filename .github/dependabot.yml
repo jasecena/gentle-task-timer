@@ -39,6 +39,17 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@babel/*'
         update-types: ['version-update:semver-major']
+      # async-storage is a *native* module, so its version has to match what the
+      # SDK's autolinking and the prebuilt Expo Go binary expect — a mismatch
+      # fails at runtime rather than at build time. SDK 57 wants exactly 2.2.0,
+      # which is why package.json pins it without a range.
+      #
+      # Checked, not assumed: PR #26 bumped it to 3.1.1 and failed CI twice over
+      # — expo-doctor's "packages match versions required by installed Expo SDK",
+      # and every component suite failing to load because v3 moved
+      # `jest/async-storage-mock`, which jest.setup.ts requires.
+      - dependency-name: '@react-native-async-storage/async-storage'
+        update-types: ['version-update:semver-major']
     groups:
       dev-tooling:
         patterns: ['eslint*', 'prettier*', 'jest*', '@testing-library/*', '@types/*', 'typescript']
