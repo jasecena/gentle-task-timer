@@ -47,7 +47,7 @@ Built and released entirely from Linux — no Mac at any point.
 
 ## Status
 
-v0.2.0 is on TestFlight and installed. Current scope:
+v0.3.1 is the current release. Scope:
 
 **Timers**
 

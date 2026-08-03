@@ -345,9 +345,16 @@ jobs:
           echo "All required configuration is present and well-formed."
 
       - name: Select Xcode
+        # Via `env:`, not `${{ }}` inside the script. An input expanded into the
+        # shell source is substituted before bash ever parses it, so a value
+        # containing shell metacharacters executes. Only someone with write
+        # access can dispatch this workflow, but the whole file passes untrusted
+        # values this way and this was the one exception.
+        env:
+          REQUESTED_XCODE: ${{ inputs.xcode_version }}
         run: |
           set -euo pipefail
-          requested="${{ inputs.xcode_version }}"
+          requested="${REQUESTED_XCODE:-}"
           if [[ -n "$requested" ]]; then
             app="/Applications/Xcode_${requested}.app"
             [[ -d "$app" ]] || { echo "::error::Xcode ${requested} is not installed on this runner."; ls -d /Applications/Xcode*.app; exit 1; }
