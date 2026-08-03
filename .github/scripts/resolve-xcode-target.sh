@@ -16,6 +16,7 @@ set -euo pipefail
 
 workspace=""
 project=""
+app_project=""
 
 # CocoaPods generates a workspace, and building the .xcodeproj directly would
 # miss the Pods target — so a workspace always wins when one exists.
@@ -28,15 +29,20 @@ for dir in ios .; do
   fi
 done
 
+for dir in ios .; do
+  [[ -d "$dir" ]] || continue
+  found="$(find "$dir" -maxdepth 1 -name '*.xcodeproj' -not -name 'Pods.xcodeproj' | head -1)"
+  if [[ -n "$found" ]]; then
+    app_project="$found"
+    break
+  fi
+done
+
+# `project` is only emitted when there is no workspace to build against;
+# `app_project` is kept regardless, because it is the most reliable place to
+# find the application's own scheme.
 if [[ -z "$workspace" ]]; then
-  for dir in ios .; do
-    [[ -d "$dir" ]] || continue
-    found="$(find "$dir" -maxdepth 1 -name '*.xcodeproj' | head -1)"
-    if [[ -n "$found" ]]; then
-      project="$found"
-      break
-    fi
-  done
+  project="$app_project"
 fi
 
 if [[ -z "$workspace" && -z "$project" ]]; then
@@ -80,14 +86,49 @@ if [[ -n "${SCHEME_OVERRIDE:-}" ]]; then
     exit 1
   fi
 else
-  # Pods-* schemes are CocoaPods bookkeeping, never the app.
+  # Choosing "the first scheme that is not Pods-*" is wrong for any CocoaPods
+  # project. A React Native workspace lists a scheme per dependency — around a
+  # hundred of them — and xcodebuild returns them alphabetically, so that rule
+  # picks something like `EXConstants`. Archiving a static library succeeds and
+  # reports "ARCHIVE SUCCEEDED" while producing no .app at all, which then fails
+  # much later and far less clearly.
+  #
+  # Two better signals, in order.
   scheme=""
-  for candidate in "${schemes[@]}"; do
-    [[ "$candidate" == Pods-* ]] && continue
-    scheme="$candidate"
-    break
-  done
-  [[ -n "$scheme" ]] || scheme="${schemes[0]}"
+
+  # 1. The application scheme is named after its container. Xcode names the
+  #    scheme after the target, and `expo prebuild` names the project after the
+  #    app, so ios/GentleTaskTimer.xcworkspace implies scheme GentleTaskTimer.
+  container="${workspace:-$app_project}"
+  if [[ -n "$container" ]]; then
+    expected="$(basename "$container")"
+    expected="${expected%.*}"
+    for candidate in "${schemes[@]}"; do
+      if [[ "$candidate" == "$expected" ]]; then
+        scheme="$candidate"
+        break
+      fi
+    done
+  fi
+
+  # 2. Otherwise ask the app's own .xcodeproj rather than the workspace. The
+  #    project lists only the app's schemes; the workspace also lists every
+  #    pod's.
+  if [[ -z "$scheme" && -n "$app_project" ]]; then
+    while IFS= read -r line; do
+      if [[ -n "$line" && "$line" != Pods-* ]]; then
+        scheme="$line"
+        break
+      fi
+    done < <(xcodebuild -list -json -project "$app_project" 2>/dev/null \
+               | jq -r '(.project // .workspace).schemes[]?' || true)
+  fi
+
+  if [[ -z "$scheme" ]]; then
+    echo "::error::Could not identify the application scheme. Expected one named '${expected:-<unknown>}'. Available: ${schemes[*]}" >&2
+    echo "::error::Set the 'scheme' workflow input to choose explicitly." >&2
+    exit 1
+  fi
 fi
 
 echo "Resolved workspace='${workspace}' project='${project}' scheme='${scheme}'" >&2
