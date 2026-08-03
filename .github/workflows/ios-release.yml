@@ -555,8 +555,14 @@ jobs:
       - name: Validate archive
         run: |
           set -euo pipefail
-          app="$(find "$ARCHIVE_PATH/Products/Applications" -maxdepth 1 -name '*.app' | head -1)"
-          [[ -n "$app" ]] || { echo "::error::Archive contains no .app bundle."; exit 1; }
+          # `find` on a missing directory exits non-zero, which under `set -e`
+          # kills the step before the error below can explain what happened —
+          # so swallow that and let the emptiness check do the reporting.
+          app="$(find "$ARCHIVE_PATH/Products/Applications" -maxdepth 1 -name '*.app' 2>/dev/null | head -1 || true)"
+          if [[ -z "$app" ]]; then
+            echo "::error::Archive contains no .app bundle. The archived scheme was '${{ steps.xcode.outputs.scheme }}' — if that is a pod or a library rather than the application, xcodebuild reports ARCHIVE SUCCEEDED while producing nothing installable."
+            exit 1
+          fi
 
           plist="$ARCHIVE_PATH/Info.plist"
           version="$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleShortVersionString' "$plist")"
