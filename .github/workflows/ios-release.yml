@@ -81,7 +81,7 @@ jobs:
         id: kind
         run: .github/scripts/detect-project-kind.sh >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: steps.kind.outputs.uses_node == 'true'
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -142,7 +142,7 @@ jobs:
         id: kind
         run: .github/scripts/detect-project-kind.sh >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: steps.kind.outputs.uses_node == 'true'
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -233,7 +233,7 @@ jobs:
 
       - name: Upload smoke test diagnostics
         if: ${{ always() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: smoke-test-${{ github.run_number }}
           path: |
@@ -319,7 +319,7 @@ jobs:
         id: kind
         run: .github/scripts/detect-project-kind.sh >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: steps.kind.outputs.uses_node == 'true'
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -365,7 +365,7 @@ jobs:
 
       - name: Cache CocoaPods
         if: steps.kind.outputs.uses_cocoapods == 'true'
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ios/Pods
@@ -615,7 +615,7 @@ jobs:
         # Keep artifacts even when a later step failed — the logs are the whole
         # point when a signing step goes wrong.
         if: ${{ always() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-build-${{ github.run_number }}
           # The signed .ipa is deliberately NOT uploaded.
