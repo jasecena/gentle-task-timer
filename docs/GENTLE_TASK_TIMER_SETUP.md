@@ -88,31 +88,50 @@ Role:  App Manager
 - [x] Repository created and pushed
 - [x] README badges pointing at the repository
 
-- [ ] Settings → Secrets and variables → Actions → **Variables**:
+Order matters: the environment must exist before the secrets go in. Secrets are
+write-only — once the `.p8` is deleted there is no way to read a stored secret
+back out and re-add it elsewhere.
+
+- [ ] Settings → Secrets and variables → Actions → **Variables**. Repository
+      level, not environment — the smoke job has no `environment:` binding and
+      cannot read environment-scoped variables:
 
 ```
 IOS_BUNDLE_IDENTIFIER    com.<yourname>.gentletasktimer
 APPLE_TEAM_ID            (value from .env)
 ```
 
-- [ ] Same page → **Secrets**:
+- [ ] Settings → Environments → New → **`ios-release`**
+  - [ ] Deployment branches and tags → Selected → add rule `v*`
+
+- [ ] `ios-release` → **Environment secrets** → Add secret, three times:
 
 ```
-APP_STORE_CONNECT_KEY_ID         10-char key id
+APP_STORE_CONNECT_KEY_ID         10-char key id (it is in the .p8 filename)
 APP_STORE_CONNECT_ISSUER_ID      the UUID
 APP_STORE_CONNECT_PRIVATE_KEY    whole .p8, BEGIN/END lines included
 ```
 
+Or from the CLI, which cannot mangle the key's newlines:
+
 ```bash
-xclip -selection clipboard < AuthKey_XXXXXXXXXX.p8   # X11
-wl-copy < AuthKey_XXXXXXXXXX.p8                      # Wayland
+gh secret set APP_STORE_CONNECT_KEY_ID      --env ios-release --body '<key id>'
+gh secret set APP_STORE_CONNECT_ISSUER_ID   --env ios-release --body '<issuer uuid>'
+gh secret set APP_STORE_CONNECT_PRIVATE_KEY --env ios-release < AuthKey_XXXXXXXXXX.p8
 ```
 
-- [ ] Delete the local `.p8`.
+- [ ] Confirm three are listed, and that none leaked to repository level:
 
-- [ ] Settings → Environments → New → **`ios-release`**
-  - [ ] Move the three `APP_STORE_CONNECT_*` secrets into it
-  - [ ] Deployment branches and tags → Selected → add rule `v*`
+```bash
+gh secret list --env ios-release
+gh secret list
+```
+
+- [ ] Only now, delete the local `.p8`:
+
+```bash
+shred -u AuthKey_XXXXXXXXXX.p8
+```
 
 - [ ] Settings → Actions → General → Fork pull request workflows → confirm
       "Require approval for first-time contributors".
