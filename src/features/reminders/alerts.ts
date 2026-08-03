@@ -30,7 +30,14 @@ function toRequest(slot: ReminderSlot): Notifications.NotificationRequestInput {
       body: slot.body,
       sound: isSilentSound(slot.soundId) ? undefined : (soundFileFor(slot.soundId, slot.ringMs) ?? 'default'),
       interruptionLevel: 'active',
-      data: { tag: ALERT_TAGS.reminder, weekday: slot.weekday, minuteOfDay: slot.minuteOfDay },
+      data: {
+        tag: ALERT_TAGS.reminder,
+        weekday: slot.weekday,
+        minuteOfDay: slot.minuteOfDay,
+        // Carried on the notification rather than looked up on arrival: this may fire days
+        // after it was armed, and the length that was chosen then is the one that applies.
+        vibrationMs: slot.vibrationMs,
+      },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.WEEKLY,

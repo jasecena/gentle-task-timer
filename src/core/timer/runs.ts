@@ -179,6 +179,7 @@ export function planRunAlerts(runs: readonly TimerRun[], now: number, limit: num
         name: run.state.config.name,
         soundId: run.state.config.soundId,
         ringMs: run.state.config.ringMs,
+        restEndAlert: run.state.config.restEndAlert,
         // Elapsed zero for this run. Pauses move it forward, which is what
         // makes a re-plan after a pause land on the new boundaries.
         runStartedAtMs: run.state.lastResumedAt! - run.state.accumulatedMs,

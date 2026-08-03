@@ -37,6 +37,8 @@ const arbConfig = (maxRepeats = 20): fc.Arbitrary<TimerConfig> =>
     // about when one happens.
     soundId: fc.constantFrom(...ALERT_SOUNDS.map((sound) => sound.id)),
     ringMs: fc.constantFrom(...RING_OPTIONS),
+    // Governs whether a boundary announces itself, never where a boundary is.
+    restEndAlert: fc.boolean(),
   });
 
 describe('schedule invariants', () => {

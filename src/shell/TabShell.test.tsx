@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import * as Notifications from 'expo-notifications';
+import { Vibration } from 'react-native';
 
 import { TabShell } from './TabShell';
 
 const notifications = Notifications as unknown as {
   __reset: () => void;
-  __pending: (tag?: string) => unknown[];
+  __pending: (tag?: string) => { identifier: string; content: Record<string, unknown> }[];
+  __deliver: (identifier: string) => void;
 };
 
 const TIMER = 'Gentle Task Timer';
@@ -88,8 +90,101 @@ describe('TabShell', () => {
     await fireEvent.press(screen.getByLabelText(`Start ${TIMER}`));
     await act(async () => {});
 
-    // Five run boundaries plus the one note, all still pending.
-    expect(notifications.__pending('run')).toHaveLength(5);
+    // Three run boundaries (rest-end is opt-in) plus the one note, all still pending.
+    expect(notifications.__pending('run')).toHaveLength(3);
     expect(notifications.__pending('oneoff')).toHaveLength(1);
+  });
+});
+
+describe('vibration when an alert arrives', () => {
+  /**
+   * The bug these exist for: `Vibration.vibrate` was called in exactly one file — the timer
+   * screen — so the vibration setting on the Schedule and Once tabs was stored, displayed,
+   * and never read. The ring worked because it rides on the notification and iOS plays it;
+   * the buzz needs JavaScript to drive a train of pulses, and nothing was listening.
+   *
+   * Foreground only, which is all the setting ever claimed: with the app closed there is no
+   * JavaScript to run a train and iOS gives its own single buzz.
+   */
+  it('buzzes for a one-off note, for the length that was chosen', async () => {
+    const vibrate = jest.spyOn(Vibration, 'vibrate').mockImplementation(() => {});
+    await renderShell();
+
+    await fireEvent.press(screen.getByLabelText('Once tab'));
+    await fireEvent.press(screen.getByLabelText('Increase Vibration')); // 3s -> 5s
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Call the dentist');
+    await fireEvent.press(screen.getByLabelText('Add note'));
+    await act(async () => {});
+
+    vibrate.mockClear();
+    await act(async () => {
+      notifications.__deliver(notifications.__pending('oneoff')[0]!.identifier);
+    });
+
+    const [pattern] = vibrate.mock.calls[0]!;
+    // A train, not a single pulse: iOS only does fixed-length buzzes, so a 5s vibration is
+    // several of them spaced to fill five seconds.
+    expect(Array.isArray(pattern)).toBe(true);
+    expect((pattern as number[]).length).toBeGreaterThan(1);
+  });
+
+  it('buzzes for a schedule alert too', async () => {
+    const vibrate = jest.spyOn(Vibration, 'vibrate').mockImplementation(() => {});
+    await renderShell();
+
+    await fireEvent.press(screen.getByLabelText('Schedule tab'));
+    // The default schedule is over budget, so narrow it until it can be armed.
+    await fireEvent.press(screen.getByLabelText('Increase Every'));
+    await fireEvent.press(screen.getByLabelText('Increase Every'));
+    await fireEvent.press(screen.getByLabelText('Start schedule'));
+    await act(async () => {});
+
+    const pending = notifications.__pending('reminder');
+    expect(pending.length).toBeGreaterThan(0);
+
+    vibrate.mockClear();
+    await act(async () => {
+      notifications.__deliver(pending[0]!.identifier);
+    });
+
+    expect(vibrate).toHaveBeenCalled();
+  });
+
+  it('does not buzz when the note is set to no vibration', async () => {
+    const vibrate = jest.spyOn(Vibration, 'vibrate').mockImplementation(() => {});
+    await renderShell();
+
+    await fireEvent.press(screen.getByLabelText('Once tab'));
+    await fireEvent.press(screen.getByLabelText('Decrease Vibration'));
+    await fireEvent.press(screen.getByLabelText('Decrease Vibration'));
+    expect(screen.getByLabelText('Vibration: Off')).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Quietly');
+    await fireEvent.press(screen.getByLabelText('Add note'));
+    await act(async () => {});
+
+    vibrate.mockClear();
+    await act(async () => {
+      notifications.__deliver(notifications.__pending('oneoff')[0]!.identifier);
+    });
+
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it('does not double-buzz a timer boundary', async () => {
+    // A run already vibrates from the engine, off elapsed-time windows — a path that works
+    // even when the notification is suppressed. Buzzing here as well would buzz twice.
+    const vibrate = jest.spyOn(Vibration, 'vibrate').mockImplementation(() => {});
+    await renderShell();
+
+    await fireEvent.press(screen.getByLabelText(`Start ${TIMER}`));
+    await act(async () => {});
+
+    vibrate.mockClear();
+    await act(async () => {
+      notifications.__deliver(notifications.__pending('run')[0]!.identifier);
+    });
+
+    expect(vibrate).not.toHaveBeenCalled();
   });
 });

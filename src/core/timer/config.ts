@@ -38,6 +38,8 @@ export const DEFAULT_CONFIG: TimerConfig = {
   vibrationMs: 3_000,
   soundId: DEFAULT_SOUND_ID,
   ringMs: RING_LIMITS.SHORT_MS,
+  // Opt-in: see the field's note in types.ts.
+  restEndAlert: false,
 };
 
 export interface ValidationIssue {
@@ -128,6 +130,10 @@ export function validateConfig(config: TimerConfig): ValidationIssue[] {
     issues.push({ field: 'ringMs', message: 'Ring length must be one of the offered options.' });
   }
 
+  if (typeof config.restEndAlert !== 'boolean') {
+    issues.push({ field: 'restEndAlert', message: 'Rest-end alert must be on or off.' });
+  }
+
   return issues;
 }
 
@@ -173,5 +179,8 @@ export function normalizeConfig(config: Partial<TimerConfig> | null | undefined)
     vibrationMs,
     soundId,
     ringMs,
+    // `=== true` rather than truthiness: a stored 'false' string would otherwise turn
+    // the alert on, and this setting is opt-in.
+    restEndAlert: source.restEndAlert === true,
   };
 }

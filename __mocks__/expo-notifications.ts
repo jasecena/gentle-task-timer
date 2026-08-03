@@ -56,6 +56,36 @@ export const cancelAllScheduledNotificationsAsync = jest.fn(async () => {
   queue = [];
 });
 
+/**
+ * Foreground delivery. The real module calls these listeners when a notification arrives
+ * while the app is open; the mock lets a test say "and now it arrived" with `__deliver`.
+ */
+type ReceivedListener = (notification: { request: ScheduledRequest }) => void;
+
+let listeners: ReceivedListener[] = [];
+
+export const addNotificationReceivedListener = jest.fn((listener: ReceivedListener) => {
+  listeners.push(listener);
+  return {
+    remove: () => {
+      listeners = listeners.filter((entry) => entry !== listener);
+    },
+  };
+});
+
+/**
+ * Test helper: delivers a pending notification to every foreground listener.
+ *
+ * Delivering also removes it from the queue, as iOS does — a notification that has fired is no
+ * longer pending, and the one-off feature depends on exactly that to know a note is done.
+ */
+export function __deliver(identifier: string): void {
+  const request = queue.find((entry) => entry.identifier === identifier);
+  if (!request) throw new Error(`no pending notification ${identifier}`);
+  queue = queue.filter((entry) => entry.identifier !== identifier);
+  listeners.forEach((listener) => listener({ request }));
+}
+
 /** Test helper: the notifications iOS is currently holding, optionally filtered by tag. */
 export function __pending(tag?: string): ScheduledRequest[] {
   return tag === undefined ? [...queue] : queue.filter((entry) => entry.content.data?.tag === tag);
@@ -64,4 +94,5 @@ export function __pending(tag?: string): ScheduledRequest[] {
 /** Test helper: empties the queue. Call alongside `jest.clearAllMocks()`. */
 export function __reset(): void {
   queue = [];
+  listeners = [];
 }

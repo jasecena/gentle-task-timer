@@ -44,6 +44,11 @@ export function TimerScreen({ reminderSlots = 0, oneoffSlots = 0 }: Props) {
    * global setting.
    */
   const onPhaseEnd = useCallback((run: TimerRun, phase: Phase) => {
+    // A rest ending is opt-in, and has to be skipped here as well as in the notification
+    // plan — these are two independent paths to the same boundary, and silencing only one
+    // would leave the phone buzzing whenever the app happened to be open.
+    if (phase.kind === 'rest' && !run.state.config.restEndAlert) return;
+
     // Distinct rhythms so work-ending and rest-ending are tellable apart in a
     // pocket; both last as long as that timer's setting says.
     vibrate(run.state.config.vibrationMs, phase.kind === 'work' ? 'double' : 'single');
