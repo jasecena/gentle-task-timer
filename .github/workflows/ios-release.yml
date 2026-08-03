@@ -268,8 +268,14 @@ jobs:
           # exits non-zero would kill the step before any of the retry logic
           # below — which is exactly what happened on the first attempt at this.
           # Inside an `if` condition, a non-zero exit is data rather than death.
+          # Five, not three. The run that first went green needed all three of
+          # three — the driver failed twice and worked on the last try — so
+          # three attempts is not headroom, it is the exact number that
+          # happened to be enough once. A failed attempt now costs about two and
+          # a half minutes, so the extra two are cheap next to a false red on a
+          # release.
           attempt=1
-          max_attempts=3
+          max_attempts=5
 
           while true; do
             rm -rf ~/.maestro/tests
