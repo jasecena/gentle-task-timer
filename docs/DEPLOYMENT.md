@@ -84,8 +84,20 @@ This is what lets CI sign and upload without a human present.
 1. <https://appstoreconnect.apple.com> → **Users and Access** → **Integrations**
    → **App Store Connect API** → **Team Keys**.
 2. Click **+**, name it `github-actions-ci`.
-3. Access role: **App Manager**. (**Developer** cannot upload builds;
-   **Admin** is more authority than a CI job should hold.)
+3. Access role: **Admin**. Cloud managed signing has to _create_ a distribution
+   certificate on first use, and only Admin may do that. **App Manager** can
+   upload builds but not mint certificates, so `-exportArchive` fails with
+   `Cloud signing permission error` and
+   `No signing certificate "iOS Distribution" found`.
+
+   > A key's role cannot be changed after it is created. If you already made an
+   > App Manager key, revoke it and create a new one — then update all three
+   > `APP_STORE_CONNECT_*` secrets, since the Key ID changes with it.
+   >
+   > To keep the key at App Manager instead, supply a distribution certificate
+   > yourself via `IOS_DIST_CERT_P12_BASE64` and `IOS_DIST_CERT_PASSWORD`; the
+   > workflow imports it and skips cloud certificate creation.
+
 4. **Download the `.p8` file.** Apple lets you download it exactly once. If you
    lose it, revoke the key and make a new one.
 5. Record the **Key ID** (10 chars) and the **Issuer ID** (a UUID, shown at the
@@ -303,9 +315,14 @@ alongside the `.p8` and any `.p12`. GitHub-hosted runners are disposable, but
 this workflow is written to be safe on a self-hosted runner too.
 
 **Least privilege throughout.** `permissions: contents: read` at the workflow
-level; `security-events: write` granted only to the CodeQL job. The API key is
-scoped **App Manager**, not Admin. The release job is bound to a protected
-environment, so a fork PR cannot reach the credentials.
+level; `security-events: write` granted only to the CodeQL job. The release job
+is bound to a protected environment, so a fork PR cannot reach the credentials.
+
+The one place least privilege gives way is the API key, which must be **Admin**
+so cloud managed signing can create a distribution certificate. If that is more
+authority than you want a CI key to hold, supply the certificate yourself
+through `IOS_DIST_CERT_P12_BASE64` and drop the key back to **App Manager** —
+the workflow supports both.
 
 **The supply chain is pinned.** Every action is pinned to a full 40-character
 commit SHA, not a mutable tag — and a CI job fails the build if anyone adds one
@@ -328,7 +345,10 @@ Security fully enforced and no exception domains.
 
 Cloud managed signing could not create or fetch a certificate.
 
-- Confirm the API key role is **App Manager**, not Developer.
+- Confirm the API key role is **Admin**. `Cloud signing permission error` plus
+  `No signing certificate "iOS Distribution" found` means the key may upload
+  builds but may not create a certificate — App Manager and Developer both fail
+  here. The role cannot be edited; revoke the key and issue a new one.
 - Check you are not at Apple's 3-distribution-certificate cap:
   <https://developer.apple.com/account/resources/certificates/list>. Revoke
   unused ones.
