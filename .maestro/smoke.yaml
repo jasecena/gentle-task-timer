@@ -27,6 +27,15 @@ appId: ${APP_ID}
 
 # --- Starting moves it into the work phase -------------------------------
 - tapOn: 'Start'
+
+# The first Start asks for notification permission, and the system dialog sits
+# over the app swallowing the next tap. Optional because it appears exactly
+# once per install: a re-run against a simulator that has already answered it
+# must not fail here.
+- tapOn:
+    text: 'Allow'
+    optional: true
+
 - assertVisible: 'WORK'
 - assertVisible: 'Pause'
 
