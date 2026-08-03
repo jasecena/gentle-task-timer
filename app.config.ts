@@ -35,7 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: VARIANT_NAME[VARIANT],
   slug: 'gentle-task-timer',
   // CI derives the marketing version from the release tag (v1.2.3 -> 1.2.3).
-  version: process.env.APP_VERSION || '0.4.0',
+  version: process.env.APP_VERSION || '0.4.1',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'gentletasktimer',
@@ -72,11 +72,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // so they carry no licence and nothing to declare at App Review.
       'expo-notifications',
       {
+        // EVERY file `ALERT_SOUNDS` can name, both lengths of each voice. A
+        // notification asking for a file that is not in the bundle is delivered
+        // *silently* — no error, no fallback — so a voice missing from this
+        // list looks exactly like a broken alert. v0.4.0 shipped with the four
+        // `-10s` files generated, committed, and absent from here, which is why
+        // the long ring made no sound at all.
+        //
+        // `src/services/__tests__/bundledSounds.test.ts` fails if this list and
+        // the catalogue ever disagree again.
         sounds: [
           './assets/sounds/chime.wav',
+          './assets/sounds/chime-10s.wav',
           './assets/sounds/bell.wav',
+          './assets/sounds/bell-10s.wav',
           './assets/sounds/marimba.wav',
+          './assets/sounds/marimba-10s.wav',
           './assets/sounds/pulse.wav',
+          './assets/sounds/pulse-10s.wav',
         ],
       },
     ],

@@ -30,9 +30,14 @@ describe('validateConfig', () => {
     expect(validateConfig(config(overrides))).not.toEqual([]);
   });
 
-  it('rejects a negative rest duration but allows zero', () => {
+  it('rejects a rest shorter than the alert, including zero', () => {
     expect(validateConfig(config({ restDurationMs: -1 }))).not.toEqual([]);
-    expect(validateConfig(config({ restDurationMs: 0 }))).toEqual([]);
+    // The default carries a 3s buzz, so no rest at all leaves it nowhere to go.
+    expect(validateConfig(config({ restDurationMs: 0 }))).not.toEqual([]);
+  });
+
+  it('allows no rest once nothing happens at a boundary', () => {
+    expect(validateConfig(config({ restDurationMs: 0, vibrationMs: 0, soundId: 'silent' }))).toEqual([]);
   });
 
   it.each([
@@ -46,7 +51,8 @@ describe('validateConfig', () => {
 
   it('accepts vibration turned off, and any offered length', () => {
     expect(validateConfig(config({ vibrationMs: 0 }))).toEqual([]);
-    expect(validateConfig(config({ vibrationMs: 10_000 }))).toEqual([]);
+    // A 10s buzz needs a rest at least that long to sit in.
+    expect(validateConfig(config({ vibrationMs: 10_000, restDurationMs: 10_000 }))).toEqual([]);
   });
 
   it.each([
@@ -104,7 +110,8 @@ describe('normalizeConfig', () => {
     const result = normalizeConfig({ workDurationMs: 0, restDurationMs: -100, repeats: 99_999 });
 
     expect(result.workDurationMs).toBe(LIMITS.MIN_WORK_MS);
-    expect(result.restDurationMs).toBe(LIMITS.MIN_REST_MS);
+    // Not MIN_REST_MS: the default 3s buzz needs somewhere to sit.
+    expect(result.restDurationMs).toBe(3_000);
     expect(result.repeats).toBe(LIMITS.MAX_REPEATS);
   });
 
@@ -126,13 +133,22 @@ describe('normalizeConfig', () => {
     expect(validateConfig(result)).toEqual([]);
   });
 
-  it('leaves a rest that is already long enough, and leaves "no rest" alone', () => {
+  it('leaves a rest that is already long enough', () => {
     const longRing = { soundId: 'chime', ringMs: 10_000, vibrationMs: 0 };
 
     expect(normalizeConfig({ ...longRing, restDurationMs: 60_000 }).restDurationMs).toBe(60_000);
-    // Zero means "no rest phase", a different arrangement rather than a short
-    // rest — lengthening it would invent a phase nobody asked for.
-    expect(normalizeConfig({ ...longRing, restDurationMs: 0 }).restDurationMs).toBe(0);
+  });
+
+  it('lifts a rest of zero to the alert length', () => {
+    const longRing = { soundId: 'chime', ringMs: 10_000, vibrationMs: 0 };
+
+    expect(normalizeConfig({ ...longRing, restDurationMs: 0 }).restDurationMs).toBe(10_000);
+  });
+
+  it('allows no rest only when nothing happens at a boundary', () => {
+    const quiet = { soundId: 'silent', ringMs: 10_000, vibrationMs: 0, restDurationMs: 0 };
+
+    expect(normalizeConfig(quiet).restDurationMs).toBe(0);
   });
 
   it('follows the vibration length too, not only the ring', () => {

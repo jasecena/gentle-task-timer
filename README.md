@@ -48,7 +48,7 @@ Built and released entirely from Linux — no Mac at any point.
 
 ## Status
 
-v0.4.0 is the current release. Scope:
+v0.4.1 is the current release. Scope:
 
 **Timers**
 
