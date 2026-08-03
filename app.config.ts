@@ -16,7 +16,7 @@ const VARIANT = (process.env.APP_VARIANT ?? 'production') as Variant;
  * Your own reverse-DNS identifier. Must be globally unique across the App
  * Store, and must match the App ID registered in your Apple Developer account.
  */
-const BASE_BUNDLE_ID = process.env.IOS_BUNDLE_IDENTIFIER ?? 'com.example.gentletasktimer';
+const BASE_BUNDLE_ID = process.env.IOS_BUNDLE_IDENTIFIER ?? 'com.example.lifetimer';
 
 const VARIANT_SUFFIX: Record<Variant, string> = {
   development: '.dev',
