@@ -168,7 +168,10 @@ Issuer ID     UUID from the TOP of the Keys page — team-wide, not per-key
 
 ## Phase 4 — GitHub repository
 
-- [ ] Create the repository and push:
+- [x] **Repository created and pushed** — <https://github.com/jasecena/life-timer>
+      (public, `main` branch, commits authored as the GitHub noreply address)
+
+<details><summary>How it was done, for the next project</summary>
 
 ```bash
 gh repo create life-timer --public --source=. --remote=origin --push
@@ -177,12 +180,9 @@ gh repo create life-timer --public --source=. --remote=origin --push
 #   git push -u origin main
 ```
 
-- [ ] **Fix the README badges** — they currently point at `OWNER/REPO`:
+</details>
 
-```bash
-sed -i 's|OWNER/REPO|<your-github-username>/life-timer|g' README.md
-git commit -am "Point CI badges at the real repository"
-```
+- [x] **README badges** — already pointing at `jasecena/life-timer`
 
 - [ ] Add repository **variables** — Settings → Secrets and variables → Actions
       → **Variables**. Not secret; they appear in logs. **The workflow aborts

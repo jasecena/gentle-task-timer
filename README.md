@@ -1,8 +1,5 @@
 # Life Timer
 
-<!-- Replace jasecena/life-timer with your GitHub path once the repository exists.
-     Step 3 of docs/LIFE_TIMER_SETUP.md has a one-line sed command for this. -->
-
 [![CI](https://github.com/jasecena/life-timer/actions/workflows/ci.yml/badge.svg)](https://github.com/jasecena/life-timer/actions/workflows/ci.yml)
 [![Security](https://github.com/jasecena/life-timer/actions/workflows/security.yml/badge.svg)](https://github.com/jasecena/life-timer/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
