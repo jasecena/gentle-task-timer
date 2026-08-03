@@ -44,10 +44,30 @@ describe('validateConfig', () => {
     expect(validateConfig(config({ repeats }))).not.toEqual([]);
   });
 
-  it('reports every problem at once rather than stopping at the first', () => {
-    const issues = validateConfig({ name: '', workDurationMs: 0, restDurationMs: -1, repeats: 0 });
+  it('accepts vibration turned off, and any offered length', () => {
+    expect(validateConfig(config({ vibrationMs: 0 }))).toEqual([]);
+    expect(validateConfig(config({ vibrationMs: 10_000 }))).toEqual([]);
+  });
 
-    expect(issues.map((i) => i.field).sort()).toEqual(['name', 'repeats', 'restDurationMs', 'workDurationMs']);
+  it.each([
+    ['a buzz shorter than the phone can produce', 200],
+    ['a buzz beyond ten seconds', 10_001],
+    ['a fractional buzz', 2_500.5],
+    ['a NaN buzz', Number.NaN],
+  ])('rejects %s', (_label, vibrationMs) => {
+    expect(validateConfig(config({ vibrationMs }))).not.toEqual([]);
+  });
+
+  it('reports every problem at once rather than stopping at the first', () => {
+    const issues = validateConfig({ name: '', workDurationMs: 0, restDurationMs: -1, repeats: 0, vibrationMs: 50 });
+
+    expect(issues.map((i) => i.field).sort()).toEqual([
+      'name',
+      'repeats',
+      'restDurationMs',
+      'vibrationMs',
+      'workDurationMs',
+    ]);
   });
 });
 

@@ -27,6 +27,15 @@ appId: ${APP_ID}
 
 # --- Starting moves it into the work phase -------------------------------
 - tapOn: 'Start'
+
+# The first Start asks for notification permission, and the system dialog sits
+# over the app swallowing the next tap. Optional because it appears exactly
+# once per install: a re-run against a simulator that has already answered it
+# must not fail here.
+- tapOn:
+    text: 'Allow'
+    optional: true
+
 - assertVisible: 'WORK'
 - assertVisible: 'Pause'
 
@@ -44,3 +53,12 @@ appId: ${APP_ID}
 - tapOn: 'Reset'
 - assertVisible: 'READY'
 - assertVisible: '02:00'
+
+# --- The other tab renders -----------------------------------------------
+# Worth the extra seconds: the schedule screen is what pulls in the icon font
+# and the storage module, and a missing native module shows up as a blank
+# screen here rather than as a crash on launch.
+- tapOn: 'Schedule tab'
+- assertVisible: 'alerts a week'
+- tapOn: 'Timer tab'
+- assertVisible: 'READY'

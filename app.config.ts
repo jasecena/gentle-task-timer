@@ -35,7 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: VARIANT_NAME[VARIANT],
   slug: 'gentle-task-timer',
   // CI derives the marketing version from the release tag (v1.2.3 -> 1.2.3).
-  version: process.env.APP_VERSION || '0.1.0',
+  version: process.env.APP_VERSION || '0.2.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'gentletasktimer',
@@ -45,6 +45,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // offering targets that are not actually supported or tested.
   platforms: ['ios'],
 
+  // NOTE: `expo-notifications` is deliberately NOT listed here.
+  //
+  // Its config plugin writes an `aps-environment` entitlement into the build,
+  // which requires the Push Notifications capability on the App ID — and this
+  // app sends no remote push. Local notifications, which are all it uses, need
+  // no capability and no entitlement whatsoever, so the App ID stays at zero
+  // capabilities and App Review has nothing to ask about.
+  //
+  // Adding the plugin to bundle custom alert sounds means enabling that
+  // capability in the developer portal first, or cloud signing fails to issue a
+  // profile. See docs/ARCHITECTURE.md.
   plugins: [
     [
       'expo-splash-screen',

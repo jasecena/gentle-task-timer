@@ -58,10 +58,15 @@ concurrency:
   group: ios-release-${{ github.ref }}
   cancel-in-progress: false
 
+# Both macOS jobs read their runner label from `vars.MACOS_RUNNER_LABEL`,
+# defaulting to `macos-latest`. Set that repository variable to an explicit
+# image (`macos-15`) when you need builds pinned to one runner generation;
+# `macos-latest` follows GitHub's current default and moves without warning.
+#
+# It cannot live in `env:` — the `env` context is not available to `runs-on`,
+# so a label defined there is silently ignored and every job falls back to
+# whatever is hardcoded.
 env:
-  # Pin to `macos-15` (or another explicit label) if you need byte-reproducible
-  # builds; `macos-latest` tracks GitHub's current default image.
-  RUNNER_LABEL: macos-latest
   NODE_VERSION: '20'
 
 jobs:
@@ -119,7 +124,7 @@ jobs:
       ${{ always()
           && (needs.verify.result == 'success' || needs.verify.result == 'skipped')
           && (inputs.run_smoke_test || vars.ENABLE_SMOKE_TEST == 'true') }}
-    runs-on: macos-latest
+    runs-on: ${{ vars.MACOS_RUNNER_LABEL || 'macos-latest' }}
     timeout-minutes: 45
     env:
       IOS_BUNDLE_IDENTIFIER: ${{ vars.IOS_BUNDLE_IDENTIFIER }}
@@ -256,7 +261,7 @@ jobs:
       ${{ always()
           && (needs.verify.result == 'success' || needs.verify.result == 'skipped')
           && (needs.smoke.result == 'success' || needs.smoke.result == 'skipped') }}
-    runs-on: macos-latest
+    runs-on: ${{ vars.MACOS_RUNNER_LABEL || 'macos-latest' }}
     timeout-minutes: 90
 
     # Bind the Apple credentials to a protected environment so they cannot be

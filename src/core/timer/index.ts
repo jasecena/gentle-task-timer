@@ -11,6 +11,21 @@ export type { ValidationIssue } from './config';
 
 export { buildSchedule, completedCyclesAt, findPhaseAt, phasesEndingBetween } from './schedule';
 
-export { createTimer, elapsedMsAt, isComplete, pause, project, reset, resume, settle, start, toggle } from './machine';
+export { MAX_PENDING_ALERTS, planAlerts } from './alerts';
+export type { AlertKind, AlertPlanInput, PlannedAlert } from './alerts';
+
+export {
+  createTimer,
+  elapsedMsAt,
+  isComplete,
+  normalizeState,
+  pause,
+  project,
+  reset,
+  resume,
+  settle,
+  start,
+  toggle,
+} from './machine';
 
 export { DURATION_UNITS, formatDuration, formatDurationLabel, fromParts, toParts } from './format';

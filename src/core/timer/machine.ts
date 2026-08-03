@@ -1,5 +1,6 @@
+import { normalizeConfig } from './config';
 import { buildSchedule, completedCyclesAt, findPhaseAt } from './schedule';
-import type { Schedule, TimerConfig, TimerProjection, TimerState } from './types';
+import type { Schedule, TimerConfig, TimerProjection, TimerState, TimerStatus } from './types';
 
 /**
  * Timer state transitions.
@@ -55,6 +56,50 @@ export function toggle(state: TimerState, now: number): TimerState {
     case 'completed':
       return start(state, now);
   }
+}
+
+const STATUSES: readonly TimerStatus[] = ['idle', 'running', 'paused', 'completed'];
+
+/**
+ * Coerces a stored run back into a state the engine can trust.
+ *
+ * Persisted state is untrusted input: it was written by an older build, or the
+ * device clock has moved since, or a crash truncated the write. Three cases
+ * matter and none of them can be left to chance:
+ *
+ * - **A run marked running with no resume timestamp** cannot be resumed — there
+ *   is nothing to measure from — so it degrades to paused, keeping the progress
+ *   it had rather than throwing the session away.
+ * - **A resume timestamp in the future** means the clock moved backwards while
+ *   the app was closed. Left alone it would make elapsed time negative; pinning
+ *   it to now costs the user the interval they were away and nothing else.
+ * - **Anything unrecognisable** becomes a fresh idle timer rather than an
+ *   exception on launch.
+ */
+export function normalizeState(state: Partial<TimerState> | null | undefined, now: number): TimerState {
+  const source = state ?? {};
+  const config = normalizeConfig(source.config);
+
+  const accumulatedMs =
+    Number.isFinite(source.accumulatedMs) && (source.accumulatedMs as number) > 0
+      ? Math.round(source.accumulatedMs as number)
+      : 0;
+
+  const status = STATUSES.includes(source.status as TimerStatus) ? (source.status as TimerStatus) : 'idle';
+
+  const lastResumedAt =
+    typeof source.lastResumedAt === 'number' && Number.isFinite(source.lastResumedAt)
+      ? Math.min(source.lastResumedAt, now)
+      : null;
+
+  if (status === 'running' && lastResumedAt === null) {
+    return { config, status: 'paused', accumulatedMs, lastResumedAt: null };
+  }
+  if (status !== 'running' && lastResumedAt !== null) {
+    return { config, status, accumulatedMs, lastResumedAt: null };
+  }
+
+  return { config, status, accumulatedMs, lastResumedAt };
 }
 
 /**
