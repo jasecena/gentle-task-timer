@@ -133,21 +133,19 @@ jobs:
       # the pipeline on someone else's release schedule.
       MAESTRO_VERSION: '2.8.0'
       MAESTRO_SHA256: 'b3e561161904fb391875ca5834d5b22cf0b01c052dd1b408ad83e30d8f8951b3'
-      # Maestro gives the iOS XCUITest driver 120 seconds to come up and start
-      # listening, and a cold GitHub macOS runner sometimes needs longer. When
-      # it does not make it, the run fails having executed *zero* steps, which
-      # reads exactly like a broken flow and is not one.
+      # Modest headroom over Maestro's 120s default, not a lot.
       #
-      # Measured rather than guessed: a failing run logged 199 connection
-      # attempts spanning precisely 13:58:46 to 14:00:46 before giving up, while
-      # a passing run on the same image connected after 47. The driver was not
-      # failing, it was slow.
+      # Raising this was the first theory for the driver never connecting and it
+      # was wrong: at 300s the failure was identical, just slower — 491 failed
+      # connections across exactly five minutes instead of 199 across exactly
+      # two. Where the driver does come up it does so in about 25 seconds, so
+      # the extra budget only ever buys a slow-but-alive driver, which is worth
+      # a little and not much.
       #
-      # Five minutes is deliberately far more headroom than the gap observed. It
-      # costs nothing on a fast runner — the driver connects and the timeout is
-      # never reached — and only spends runner time in the case that would
-      # otherwise have wasted the whole job.
-      MAESTRO_DRIVER_STARTUP_TIMEOUT: '300000'
+      # It is kept *short* on purpose now that the step retries: every second
+      # over the real startup time is a second the loop spends waiting instead
+      # of getting to its next attempt, which is the thing that actually works.
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '150000'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -265,18 +263,24 @@ jobs:
           # executing a single command is final, pass or fail. Maestro writes
           # commands.json per flow only once it starts running one, which is
           # exactly the signal needed to tell the two apart.
+          # NOTE: GitHub runs this as `bash -e {0}`, so `-e` is already on and a
+          # `set -uo pipefail` here does not clear it. A bare `maestro ...` that
+          # exits non-zero would kill the step before any of the retry logic
+          # below — which is exactly what happened on the first attempt at this.
+          # Inside an `if` condition, a non-zero exit is data rather than death.
           attempt=1
           max_attempts=3
 
           while true; do
             rm -rf ~/.maestro/tests
             echo "::group::Smoke attempt ${attempt} of ${max_attempts}"
-            maestro --device "$SIM_UDID" test "$RUNNER_TEMP/smoke.yaml" \
-              --format junit --output "$RUNNER_TEMP/maestro-report.xml"
-            status=$?
+            if maestro --device "$SIM_UDID" test "$RUNNER_TEMP/smoke.yaml" \
+                 --format junit --output "$RUNNER_TEMP/maestro-report.xml"; then
+              echo "::endgroup::"
+              echo "Smoke passed on attempt ${attempt}."
+              break
+            fi
             echo "::endgroup::"
-
-            [[ $status -eq 0 ]] && { echo "Smoke passed on attempt ${attempt}."; break; }
 
             if [[ -n "$(find ~/.maestro/tests -name commands.json 2>/dev/null)" ]]; then
               echo "::error::Smoke flow ran and failed. This is the app or the flow, not the driver."
