@@ -1,7 +1,7 @@
-# Life Timer
+# Gentle Task Timer
 
-[![CI](https://github.com/jasecena/life-timer/actions/workflows/ci.yml/badge.svg)](https://github.com/jasecena/life-timer/actions/workflows/ci.yml)
-[![Security](https://github.com/jasecena/life-timer/actions/workflows/security.yml/badge.svg)](https://github.com/jasecena/life-timer/actions/workflows/security.yml)
+[![CI](https://github.com/jasecena/gentle-task-timer/actions/workflows/ci.yml/badge.svg)](https://github.com/jasecena/gentle-task-timer/actions/workflows/ci.yml)
+[![Security](https://github.com/jasecena/gentle-task-timer/actions/workflows/security.yml/badge.svg)](https://github.com/jasecena/gentle-task-timer/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A repeating interval timer for iPhone. Set a duration, a number of repeats and
@@ -12,8 +12,8 @@ Built and released entirely from Linux — no Mac at any point.
 
 ```
 ┌─────────────────────┐
-│      Life Timer     │
-│   7m total · 30s rest│
+│  Gentle Task Timer  │
+│ 7m total · 30s rest │
 │                     │
 │        WORK         │
 │       01:47         │
@@ -64,7 +64,7 @@ npm run test:watch
 
 ## Getting it onto your phone as a real app
 
-Follow **[docs/LIFE_TIMER_SETUP.md](docs/LIFE_TIMER_SETUP.md)** — the concrete
+Follow **[docs/GENTLE_TASK_TIMER_SETUP.md](docs/GENTLE_TASK_TIMER_SETUP.md)** — the concrete
 checklist for this app. Reference detail and troubleshooting live in
 **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. Short version: push a `v*` tag
 and a GitHub-hosted macOS runner archives, signs and uploads to TestFlight.

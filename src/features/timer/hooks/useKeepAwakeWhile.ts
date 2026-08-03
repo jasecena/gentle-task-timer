@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
-const TAG = 'life-timer-run';
+const TAG = 'gentle-task-timer-run';
 
 /**
  * Holds the screen on only while `active` is true.

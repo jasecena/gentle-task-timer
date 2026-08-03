@@ -16,7 +16,7 @@ const VARIANT = (process.env.APP_VARIANT ?? 'production') as Variant;
  * Your own reverse-DNS identifier. Must be globally unique across the App
  * Store, and must match the App ID registered in your Apple Developer account.
  */
-const BASE_BUNDLE_ID = process.env.IOS_BUNDLE_IDENTIFIER ?? 'com.example.lifetimer';
+const BASE_BUNDLE_ID = process.env.IOS_BUNDLE_IDENTIFIER ?? 'com.example.gentletasktimer';
 
 const VARIANT_SUFFIX: Record<Variant, string> = {
   development: '.dev',
@@ -25,20 +25,20 @@ const VARIANT_SUFFIX: Record<Variant, string> = {
 };
 
 const VARIANT_NAME: Record<Variant, string> = {
-  development: 'Life Timer (Dev)',
-  preview: 'Life Timer (Preview)',
-  production: 'Life Timer',
+  development: 'Gentle Task Timer (Dev)',
+  preview: 'Gentle Task Timer (Preview)',
+  production: 'Gentle Task Timer',
 };
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: VARIANT_NAME[VARIANT],
-  slug: 'life-timer',
+  slug: 'gentle-task-timer',
   // CI derives the marketing version from the release tag (v1.2.3 -> 1.2.3).
   version: process.env.APP_VERSION || '0.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  scheme: 'lifetimer',
+  scheme: 'gentletasktimer',
   userInterfaceStyle: 'dark',
 
   // iPhone only, for now. Listing a single platform keeps `expo start` from

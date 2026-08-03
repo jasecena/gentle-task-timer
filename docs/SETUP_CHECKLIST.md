@@ -5,7 +5,7 @@ workstation, using the pipeline in `.github/workflows/ios-release.yml`.
 
 Pick up at Phase 2 once Apple Developer Program enrolment is approved.
 
-> For **this** app specifically, follow [LIFE_TIMER_SETUP.md](LIFE_TIMER_SETUP.md)
+> For **this** app specifically, follow [GENTLE_TASK_TIMER_SETUP.md](GENTLE_TASK_TIMER_SETUP.md)
 > instead — it is this template with the decisions already made. Keep this file
 > generic so it can be copied into the next project.
 

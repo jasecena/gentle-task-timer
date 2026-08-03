@@ -4,7 +4,7 @@
 # and ~150 others) and adds rules for the credential types specific to iOS
 # release engineering.
 
-title = "life-timer"
+title = "gentle-task-timer"
 
 [extend]
 useDefault = true

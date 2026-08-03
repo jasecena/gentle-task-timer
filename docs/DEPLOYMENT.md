@@ -99,7 +99,7 @@ This is what lets CI sign and upload without a human present.
 
 1. App Store Connect → **Apps** → **+** → **New App**.
 2. Platform **iOS**; pick your bundle ID (created in step 3); SKU can be
-   anything unique (`life-timer`); primary language as you like.
+   anything unique (`gentle-task-timer`); primary language as you like.
 
 You must create the app record _before_ the first upload, or `altool` rejects
 the build with "no suitable application record was found".
@@ -112,7 +112,7 @@ the build with "no suitable application record was found".
 
 1. <https://developer.apple.com/account/resources/identifiers/list> → **+**.
 2. **App IDs** → **App**.
-3. Bundle ID: **Explicit**, e.g. `com.yourname.lifetimer`. It must be globally
+3. Bundle ID: **Explicit**, e.g. `com.yourname.gentletasktimer`. It must be globally
    unique and must match `vars.IOS_BUNDLE_IDENTIFIER` exactly.
 4. Capabilities: leave everything off for now. This app is fully offline. Add
    **Push Notifications** only if you later add remote notifications — local
@@ -142,10 +142,10 @@ imports them into a throwaway keychain instead.
 **Settings → Secrets and variables → Actions → Variables → New variable.**
 These are not secret; they appear in build logs.
 
-| Variable                | Example                  | Where it comes from |
-| ----------------------- | ------------------------ | ------------------- |
-| `IOS_BUNDLE_IDENTIFIER` | `com.yourname.lifetimer` | Step 3              |
-| `APPLE_TEAM_ID`         | `A1B2C3D4E5`             | Step 1              |
+| Variable                | Example                        | Where it comes from |
+| ----------------------- | ------------------------------ | ------------------- |
+| `IOS_BUNDLE_IDENTIFIER` | `com.yourname.gentletasktimer` | Step 3              |
+| `APPLE_TEAM_ID`         | `A1B2C3D4E5`                   | Step 1              |
 
 ### Repository secrets
 

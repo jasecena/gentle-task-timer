@@ -14,7 +14,7 @@ import { useTimer } from './hooks/useTimer';
 
 const INITIAL_CONFIG = {
   ...DEFAULT_CONFIG,
-  name: 'Life Timer',
+  name: 'Gentle Task Timer',
   workDurationMs: 120_000,
   restDurationMs: 30_000,
   repeats: 3,
