@@ -20,19 +20,24 @@ export function alertDurationMs(profile: AlertProfile): number {
 }
 
 /**
- * The shortest rest that still leaves a rest.
+ * The shortest rest that still leaves the work phases whole.
  *
- * A ten-second ring across a five-second rest means the alert announcing the
+ * A ten-second alert across a five-second rest means the noise announcing the
  * rest is still going when the next work phase starts — so the rest was never
- * a rest, and the work phase begins in the middle of a noise. Making the rest
- * at least as long as the alert is what keeps every phase boundary a real
- * boundary.
+ * a rest, and the work began in the middle of a buzz.
  *
- * Zero is left alone: it means "no rest phase at all", which is a different
- * arrangement rather than a very short rest, and lengthening it would invent a
- * phase the user did not ask for.
+ * **Zero is not exempt**, and this is the correction v0.4.1 makes. "No rest"
+ * with a ten-second buzz is the worst case of the problem rather than an
+ * exception to it: the alert lands squarely inside the following work phase
+ * with nothing to absorb it. Zero is a rest shorter than the alert, and it is
+ * lifted like any other.
+ *
+ * The only way back to no rest at all is to have no alert at all — vibration
+ * off and the voice set to Silent — at which point the floor is zero and the
+ * run goes work-to-work with nothing to interrupt it. That is a coherent
+ * arrangement; "no gap, but a ten-second noise at every boundary" is not.
  */
 export function restFloorMs(restDurationMs: number, profile: AlertProfile): number {
-  if (!Number.isFinite(restDurationMs) || restDurationMs <= 0) return 0;
-  return Math.max(restDurationMs, alertDurationMs(profile));
+  const rest = Number.isFinite(restDurationMs) ? Math.max(0, restDurationMs) : 0;
+  return Math.max(rest, alertDurationMs(profile));
 }

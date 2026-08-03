@@ -29,7 +29,11 @@ export const LIMITS = {
 export const DEFAULT_CONFIG: TimerConfig = {
   name: 'Timer',
   workDurationMs: 60_000,
-  restDurationMs: 0,
+  // Exactly the default vibration length, and not a coincidence: a rest shorter
+  // than the alert announcing it would fail `validateConfig`, and a default
+  // that cannot pass its own validator is a trap for every caller that starts
+  // from it.
+  restDurationMs: 3_000,
   repeats: 1,
   vibrationMs: 3_000,
   soundId: DEFAULT_SOUND_ID,
@@ -71,12 +75,27 @@ export function validateConfig(config: TimerConfig): ValidationIssue[] {
     issues.push({ field: 'workDurationMs', message: 'Work duration cannot exceed 24 hours.' });
   }
 
+  // One rest message, not several: a negative rest is also below the alert
+  // floor, and reporting both would show the same field twice with two
+  // different fixes.
   if (!isFiniteInteger(config.restDurationMs)) {
     issues.push({ field: 'restDurationMs', message: 'Rest duration must be a whole number of milliseconds.' });
   } else if (config.restDurationMs < LIMITS.MIN_REST_MS) {
     issues.push({ field: 'restDurationMs', message: 'Rest duration cannot be negative.' });
   } else if (config.restDurationMs > LIMITS.MAX_REST_MS) {
     issues.push({ field: 'restDurationMs', message: 'Rest duration cannot exceed 24 hours.' });
+  } else {
+    // A rest shorter than the alert announcing it is not a rest — the noise is
+    // still going when the next work phase starts. Zero counts: it is the
+    // shortest rest of all. normalizeConfig lifts it, so this only fires for a
+    // config that never went through there.
+    const floor = restFloorMs(config.restDurationMs, config);
+    if (config.restDurationMs < floor) {
+      issues.push({
+        field: 'restDurationMs',
+        message: `Rest must be at least as long as the alert (${Math.round(floor / 1_000)}s).`,
+      });
+    }
   }
 
   if (!isFiniteInteger(config.repeats)) {
@@ -107,17 +126,6 @@ export function validateConfig(config: TimerConfig): ValidationIssue[] {
 
   if (normalizeRingMs(config.ringMs) !== config.ringMs) {
     issues.push({ field: 'ringMs', message: 'Ring length must be one of the offered options.' });
-  }
-
-  // A rest shorter than the alert announcing it is not a rest — the noise is
-  // still going when the next work phase starts. normalizeConfig lifts it, so
-  // this only fires for a config that never went through there.
-  const floor = restFloorMs(config.restDurationMs, config);
-  if (config.restDurationMs > 0 && config.restDurationMs < floor) {
-    issues.push({
-      field: 'restDurationMs',
-      message: `Rest must be at least as long as the alert (${Math.round(floor / 1_000)}s).`,
-    });
   }
 
   return issues;
@@ -154,9 +162,9 @@ export function normalizeConfig(config: Partial<TimerConfig> | null | undefined)
       LIMITS.MIN_WORK_MS,
       LIMITS.MAX_WORK_MS,
     ),
-    // Lifted to the alert's length when there is a rest at all, so an alert can
-    // never eat the whole of it. Zero stays zero — that is "no rest phase",
-    // not "a very short one".
+    // Lifted to the alert's length, so an alert can never run into the work
+    // phase that follows it. Zero is lifted too: "no rest, but a ten-second
+    // buzz at every boundary" is the problem, not an exception to it.
     restDurationMs: restFloorMs(
       clamp(source.restDurationMs ?? DEFAULT_CONFIG.restDurationMs, LIMITS.MIN_REST_MS, LIMITS.MAX_REST_MS),
       { vibrationMs, soundId, ringMs },

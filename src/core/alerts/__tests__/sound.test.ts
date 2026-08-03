@@ -151,12 +151,25 @@ describe('restFloorMs', () => {
     expect(restFloorMs(30_000, longRing)).toBe(30_000);
   });
 
-  it('leaves "no rest at all" alone rather than inventing a phase', () => {
+  /**
+   * The correction v0.4.1 makes. "No rest" with a ten-second buzz is the worst
+   * case of the problem rather than an exception to it — the alert lands
+   * squarely inside the next work phase with nothing to absorb it.
+   */
+  it('lifts a rest of zero too, because zero is the shortest rest of all', () => {
     const longRing = { vibrationMs: 0, soundId: 'chime', ringMs: RING_LIMITS.LONG_MS };
 
-    expect(restFloorMs(0, longRing)).toBe(0);
-    expect(restFloorMs(-5, longRing)).toBe(0);
-    expect(restFloorMs(Number.NaN, longRing)).toBe(0);
+    expect(restFloorMs(0, longRing)).toBe(10_000);
+    expect(restFloorMs(-5, longRing)).toBe(10_000);
+    expect(restFloorMs(Number.NaN, longRing)).toBe(10_000);
+  });
+
+  it('allows no rest only when there is no alert to absorb', () => {
+    const nothing = { vibrationMs: 0, soundId: SILENT_SOUND_ID, ringMs: RING_LIMITS.LONG_MS };
+
+    // Vibration off and the voice silent: nothing happens at a boundary, so
+    // work-to-work with no gap is coherent.
+    expect(restFloorMs(0, nothing)).toBe(0);
   });
 
   it('follows the vibration too, not just the ring', () => {

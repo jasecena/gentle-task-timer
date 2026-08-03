@@ -19,9 +19,16 @@ const T0 = 1_800_000_000_000;
 
 const config = (overrides: Partial<TimerConfig> = {}): TimerConfig => ({ ...DEFAULT_CONFIG, ...overrides });
 
-/** A run that has been going since T0, so it has real boundaries ahead of it. */
+/**
+ * A run that has been going since T0, so it has real boundaries ahead of it.
+ *
+ * Alerts are off by default here: a buzz or a ring imposes a minimum rest (see
+ * `restFloorMs`), and these tests are about *when* boundaries land, not about
+ * what happens at them. Leaving the default 3s vibration on would quietly give
+ * every "no rest" fixture a 3s rest and shift every expected time.
+ */
 function running(id: string, overrides: Partial<TimerConfig> = {}): TimerRun {
-  return { id, state: start(createRun(id, config(overrides)).state, T0) };
+  return { id, state: start(createRun(id, config({ vibrationMs: 0, soundId: 'silent', ...overrides })).state, T0) };
 }
 
 describe('nextRunId', () => {

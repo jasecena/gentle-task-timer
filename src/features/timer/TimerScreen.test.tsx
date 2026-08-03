@@ -160,46 +160,61 @@ describe('a single timer', () => {
 
 describe('the alert cannot eat the rest', () => {
   /**
-   * The rule itself lives in `normalizeConfig` and is covered in the core
-   * suite, where the arithmetic can be exercised directly.
-   *
-   * Worth recording what these two assert instead, because it is easy to
-   * misread the gap as a missing test: with rest stepping in 15-second
-   * increments and an alert capped at 10 seconds, the UI **cannot** produce a
-   * rest shorter than the alert. The floor is a guard at the trust boundary —
-   * it catches a restored config from a build with different limits — not
-   * something these controls can reach. What is checkable here is that the
-   * shortest reachable rest still clears the longest possible alert.
+   * v0.4.0 got this wrong in a way these tests encoded rather than caught:
+   * "no rest" was treated as an exception to the rule, when it is the worst
+   * case of it — a ten-second buzz with no gap lands squarely inside the next
+   * work phase.
    */
-  it('cannot reach a rest shorter than the longest possible alert', async () => {
+  it('will not step rest below the alert, and says why', async () => {
     await renderScreen();
     await openSettings(A);
 
-    await fireEvent.press(screen.getByLabelText('Decrease Rest'));
-    expect(screen.getByLabelText('Rest: 15s')).toBeOnTheScreen();
-
-    // The loudest, longest alert the app offers: a 10s buzz and a 10s ring.
-    await fireEvent.press(screen.getByLabelText('Increase Sound'));
-    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Chime
-    await fireEvent.press(screen.getByLabelText('Increase Ring length')); // 10s
-    await fireEvent.press(screen.getByLabelText('Increase Vibration'));
+    // A 10s buzz: rest can no longer go under ten seconds.
+    await fireEvent.press(screen.getByLabelText('Increase Vibration')); // 5s
     await fireEvent.press(screen.getByLabelText('Increase Vibration')); // 10s
 
-    // 15s still clears it, so the rest is untouched and no warning is needed.
+    await fireEvent.press(screen.getByLabelText('Decrease Rest')); // 30s -> 15s
     expect(screen.getByLabelText('Rest: 15s')).toBeOnTheScreen();
-    expect(screen.queryByText(/Rest is held at/)).not.toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByLabelText('Decrease Rest')); // would be 0
+    expect(screen.getByLabelText('Rest: 10s')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Decrease Rest')).toBeDisabled();
+    expect(screen.getByText(/Rest is held at/)).toBeOnTheScreen();
   });
 
-  it('leaves "no rest at all" alone, because that is a different arrangement', async () => {
+  it('allows no rest at all once nothing happens at a boundary', async () => {
     await renderScreen();
     await openSettings(A);
+
+    // Vibration off and the voice silent: no noise to absorb, so work-to-work
+    // with no gap is coherent again.
+    await fireEvent.press(screen.getByLabelText('Decrease Vibration'));
+    await fireEvent.press(screen.getByLabelText('Decrease Vibration'));
+    expect(screen.getByLabelText('Vibration: Off')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
+    expect(screen.getByLabelText('Sound: Silent')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByLabelText('Decrease Rest')); // 15s
     await fireEvent.press(screen.getByLabelText('Decrease Rest')); // None
 
-    // Zero is "no rest phase", not "a very short rest", so the floor never
-    // lifts it into existence.
     expect(screen.getByLabelText('Rest: None')).toBeOnTheScreen();
+  });
+
+  it('sends the ten-second file, which must actually be in the bundle', async () => {
+    await renderScreen();
+    await openSettings(A);
+
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
+    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Chime
+    await fireEvent.press(screen.getByLabelText('Increase Ring length')); // 10s
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await act(async () => {});
+
+    // See src/services/__tests__/bundledSounds.test.ts: a filename iOS cannot
+    // resolve is delivered silently, which is how v0.4.0 shipped a long ring
+    // that made no noise.
+    expect(notifications.__pending('run').every((r) => r.content.sound === 'chime-10s.wav')).toBe(true);
   });
 });
 

@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { AlertRows, type AlertSettings } from '@/components/AlertRows';
 import { StepperRow } from '@/components/StepperRow';
-import { alertDurationMs } from '@/core/alerts';
+import { alertDurationMs, restFloorMs } from '@/core/alerts';
 import { LIMITS, formatDurationLabel, normalizeConfig, type TimerConfig } from '@/core/timer';
 import { colors, spacing, typography } from '@/theme/tokens';
 
@@ -26,7 +26,7 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
   // The floor `normalizeConfig` applies, surfaced so a rest that refuses to go
   // lower explains itself rather than looking broken.
   const alertMs = alertDurationMs(config);
-  const restPinned = config.restDurationMs > 0 && config.restDurationMs <= alertMs;
+  const restPinned = alertMs > 0 && config.restDurationMs <= restFloorMs(0, config);
 
   return (
     <View style={styles.container}>
@@ -45,13 +45,13 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
         disabled={disabled}
         onDecrement={() => update({ restDurationMs: config.restDurationMs - REST_STEP_MS })}
         onIncrement={() => update({ restDurationMs: config.restDurationMs + REST_STEP_MS })}
-        canDecrement={config.restDurationMs > LIMITS.MIN_REST_MS}
+        canDecrement={config.restDurationMs > Math.max(LIMITS.MIN_REST_MS, alertMs)}
         canIncrement={config.restDurationMs < LIMITS.MAX_REST_MS}
       />
       {restPinned ? (
         <Text style={styles.note}>
-          Rest is held at {formatDurationLabel(alertMs)} to match the alert. A rest shorter than the alert announcing it
-          is not a rest — the noise would still be going when the next work phase starts.
+          Rest is held at {formatDurationLabel(alertMs)} to match the alert — otherwise the noise would still be going
+          when the next work phase starts. Turn vibration off and set the sound to Silent for no rest at all.
         </Text>
       ) : null}
       <StepperRow
