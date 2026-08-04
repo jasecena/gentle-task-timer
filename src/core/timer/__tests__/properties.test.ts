@@ -39,6 +39,8 @@ const arbConfig = (maxRepeats = 20): fc.Arbitrary<TimerConfig> =>
     ringMs: fc.constantFrom(...RING_OPTIONS),
     // Governs whether a boundary announces itself, never where a boundary is.
     restEndAlert: fc.boolean(),
+    // Governs whether iOS is told, never what the timeline is.
+    notifyWhenClosed: fc.boolean(),
   });
 
 describe('schedule invariants', () => {

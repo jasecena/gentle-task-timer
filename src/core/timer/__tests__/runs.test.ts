@@ -31,7 +31,10 @@ function running(id: string, overrides: Partial<TimerConfig> = {}): TimerRun {
   return {
     id,
     state: start(
-      createRun(id, config({ vibrationMs: 0, soundId: 'silent', restEndAlert: true, ...overrides })).state,
+      createRun(
+        id,
+        config({ vibrationMs: 0, soundId: 'silent', restEndAlert: true, notifyWhenClosed: true, ...overrides }),
+      ).state,
       T0,
     ),
   };

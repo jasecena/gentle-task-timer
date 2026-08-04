@@ -56,10 +56,13 @@ export function RemindersScreen({ reminders }: Props) {
       */}
       <View style={[styles.budget, budgetIssue && styles.budgetOver]}>
         <Text style={[styles.budgetCount, budgetIssue && styles.budgetCountOver]}>
-          {slotCount} of {REMINDER_BUDGET} alerts a week
+          {config.notifyWhenClosed
+            ? `${slotCount} of ${REMINDER_BUDGET} alerts a week`
+            : `${perDay * config.days.length} alerts a week · no slots used`}
         </Text>
         <Text style={styles.budgetDetail}>
           {perDay} a day × {config.days.length} {config.days.length === 1 ? 'day' : 'days'}
+          {config.notifyWhenClosed ? '' : ' · while the app is open'}
         </Text>
       </View>
 

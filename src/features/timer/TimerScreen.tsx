@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, Vibration, View } from 'react-native';
 
 import { buildVibrationPattern } from '@/core/alerts';
+import { playAlertSound, stopAlertSound } from '@/services/soundPreview';
 import { DEFAULT_CONFIG, MAX_RUNS, type Phase, type TimerConfig, type TimerRun } from '@/core/timer';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
@@ -52,10 +53,12 @@ export function TimerScreen({ reminderSlots = 0, oneoffSlots = 0 }: Props) {
     // Distinct rhythms so work-ending and rest-ending are tellable apart in a
     // pocket; both last as long as that timer's setting says.
     vibrate(run.state.config.vibrationMs, phase.kind === 'work' ? 'double' : 'single');
+    announce(run.state.config);
   }, []);
 
   const onComplete = useCallback((run: TimerRun) => {
     vibrate(run.state.config.vibrationMs, 'triple');
+    announce(run.state.config);
   }, []);
 
   const timers = useTimers(INITIAL_CONFIG, { onPhaseEnd, onComplete });
@@ -74,6 +77,7 @@ export function TimerScreen({ reminderSlots = 0, oneoffSlots = 0 }: Props) {
   const toggle = useCallback(
     (id: string) => {
       Vibration.cancel();
+      stopAlertSound();
       timers.toggle(id);
     },
     [timers],
@@ -82,6 +86,7 @@ export function TimerScreen({ reminderSlots = 0, oneoffSlots = 0 }: Props) {
   const reset = useCallback(
     (id: string) => {
       Vibration.cancel();
+      stopAlertSound();
       timers.reset(id);
     },
     [timers],
@@ -139,6 +144,18 @@ export function TimerScreen({ reminderSlots = 0, oneoffSlots = 0 }: Props) {
       ) : null}
     </ScrollView>
   );
+}
+
+/**
+ * Plays the run's voice, but only when nothing else will.
+ *
+ * In the normal mode the sound rides on the notification and iOS plays it, so doing it here as
+ * well would double up. In-app mode schedules no notification at all, which means the app is
+ * the only thing that can make a noise.
+ */
+function announce(config: TimerConfig): void {
+  if (config.notifyWhenClosed) return;
+  playAlertSound(config.soundId, config.ringMs);
 }
 
 /** Fires a vibration of the configured length, or nothing at all when it is off. */

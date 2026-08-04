@@ -98,6 +98,8 @@ v0.4.2 is the current release. Scope:
 - [x] All three features share iOS's 64-notification ceiling deliberately, and
       running timers share their slice round-robin so a slow timer is never
       starved by a fast one
+- [x] **In-app alert mode** — per timer and per schedule, costs zero notification
+      slots, so any frequency is allowed. Alerts only while the app is open
 - [ ] Renaming a timer from the UI
 - [ ] Saved presets
 - [ ] Background audio session for true background operation
@@ -115,7 +117,7 @@ machine.
 
 ```bash
 npm run verify     # typecheck + lint + format check + tests. Run before pushing.
-npm test           # 338 tests, ~7s
+npm test           # 352 tests, ~7s
 npm run test:watch
 ```
 

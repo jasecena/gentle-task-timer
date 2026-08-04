@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { AlertRows, type AlertSettings } from '@/components/AlertRows';
 import { DayRow } from '@/components/DayRow';
 import { StepperRow } from '@/components/StepperRow';
+import { ToggleRow } from '@/components/ToggleRow';
 import { TimeField } from '@/components/TimeField';
 import { sortDays } from '@/core/clock';
 import {
@@ -84,6 +85,18 @@ export function ScheduleEditor({ config, onChange, disabled = false }: Props) {
       />
 
       <AlertRows settings={config} disabled={disabled} onChange={(patch: Partial<AlertSettings>) => update(patch)} />
+
+      <ToggleRow
+        label="Alerts with the app closed"
+        disabled={disabled}
+        hint={
+          config.notifyWhenClosed
+            ? 'Uses iPhone notification slots — 48 a week at most, shared with your timers.'
+            : 'Costs no slots, so any frequency is allowed. Alerts only while this app is open.'
+        }
+        value={config.notifyWhenClosed}
+        onChange={(notifyWhenClosed: boolean) => update({ notifyWhenClosed })}
+      />
 
       {/* A press toggles the day in the set — a schedule runs on any number of days. */}
       <DayRow

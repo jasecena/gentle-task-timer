@@ -32,6 +32,18 @@ export interface ReminderConfig {
   readonly soundId: string;
   /** How long that voice rings for, in ms. */
   readonly ringMs: number;
+  /**
+   * Whether the schedule is handed to iOS so it fires with the app closed.
+   *
+   * On by default, and the reason this feature exists at all — a standing arrangement that
+   * needs the app open is a much smaller idea.
+   *
+   * Turning it off costs **zero** notification slots, which is what makes a frequency the
+   * 64-slot budget could never afford possible: every five minutes, nine to five, weekdays is
+   * 480 alerts a week and free. The price is absolute rather than partial — it fires only
+   * while the app is in the foreground, and not at all otherwise.
+   */
+  readonly notifyWhenClosed: boolean;
 }
 
 /**

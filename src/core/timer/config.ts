@@ -40,6 +40,7 @@ export const DEFAULT_CONFIG: TimerConfig = {
   ringMs: RING_LIMITS.SHORT_MS,
   // Opt-in: see the field's note in types.ts.
   restEndAlert: false,
+  notifyWhenClosed: true,
 };
 
 export interface ValidationIssue {
@@ -134,6 +135,10 @@ export function validateConfig(config: TimerConfig): ValidationIssue[] {
     issues.push({ field: 'restEndAlert', message: 'Rest-end alert must be on or off.' });
   }
 
+  if (typeof config.notifyWhenClosed !== 'boolean') {
+    issues.push({ field: 'notifyWhenClosed', message: 'Background alerts must be on or off.' });
+  }
+
   return issues;
 }
 
@@ -182,5 +187,8 @@ export function normalizeConfig(config: Partial<TimerConfig> | null | undefined)
     // `=== true` rather than truthiness: a stored 'false' string would otherwise turn
     // the alert on, and this setting is opt-in.
     restEndAlert: source.restEndAlert === true,
+    // Defaults to ON, unlike restEndAlert: silently downgrading a restored config to
+    // foreground-only would mean alerts quietly stop arriving when the app is closed.
+    notifyWhenClosed: source.notifyWhenClosed !== false,
   };
 }

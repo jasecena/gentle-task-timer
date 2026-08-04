@@ -77,6 +77,17 @@ export function ConfigEditor({ config, onChange, disabled }: Props) {
         nothing to govern, and a control that visibly does nothing is worse than one that
         is not there.
       */}
+      <ToggleRow
+        label="Alerts with the app closed"
+        hint={
+          config.notifyWhenClosed
+            ? 'Uses iPhone notification slots, which are limited to 64 for the whole app.'
+            : 'Costs no notification slots. Alerts only while this app is open and on screen.'
+        }
+        value={config.notifyWhenClosed}
+        onChange={(notifyWhenClosed: boolean) => update({ notifyWhenClosed })}
+      />
+
       {config.restDurationMs > 0 ? (
         <ToggleRow
           label="Alert when rest ends"

@@ -24,6 +24,7 @@ const MONDAYS: ReminderConfig = {
   vibrationMs: 3_000,
   soundId: 'default',
   ringMs: 1_500,
+  notifyWhenClosed: true,
 };
 
 beforeEach(async () => {

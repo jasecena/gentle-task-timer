@@ -3,7 +3,16 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { soundFileFor } from '@/core/alerts';
 
 /**
- * Playing an alert voice on demand, so a choice can be heard before it is made.
+ * Playing an alert voice from the app itself.
+ *
+ * Two callers, and they are not the same thing:
+ *
+ * - **Preview**, so a choice can be heard before it is made.
+ * - **In-app alert mode**, where nothing is handed to iOS and so nothing plays a sound unless
+ *   the app does.
+ *
+ * One module, one player, deliberately. A second file importing `expo-audio` would mean two
+ * players competing for the audio session, and a preview overlapping a real alert.
  *
  * The only file in the app that imports `expo-audio`, and the only place audio
  * is played at all. Alerts themselves never come through here: a notification
@@ -27,9 +36,13 @@ import { soundFileFor } from '@/core/alerts';
  */
 const CLIPS: Record<string, number> = {
   'chime.wav': require('../../assets/sounds/chime.wav'),
+  'chime-10s.wav': require('../../assets/sounds/chime-10s.wav'),
   'bell.wav': require('../../assets/sounds/bell.wav'),
+  'bell-10s.wav': require('../../assets/sounds/bell-10s.wav'),
   'marimba.wav': require('../../assets/sounds/marimba.wav'),
+  'marimba-10s.wav': require('../../assets/sounds/marimba-10s.wav'),
   'pulse.wav': require('../../assets/sounds/pulse.wav'),
+  'pulse-10s.wav': require('../../assets/sounds/pulse-10s.wav'),
 };
 
 let player: AudioPlayer | null = null;
@@ -46,11 +59,31 @@ let playing: string | null = null;
  * while choosing a sound is a bug.
  */
 export function previewSound(soundId: string): void {
-  const file = soundFileFor(soundId);
-  if (file === null) {
-    stopPreview();
-    return;
+  play(soundFileFor(soundId));
+}
+
+/**
+ * Plays the voice an alert would have used, at the length it would have rung for.
+ *
+ * Only for in-app mode. In the normal mode the sound rides on the notification and iOS plays
+ * it — that path works with the app closed and this cannot, so calling both would simply
+ * double up.
+ */
+export function playAlertSound(soundId: string, ringMs: number): void {
+  play(soundFileFor(soundId, ringMs));
+}
+
+/** Stops whatever is playing, paired with `Vibration.cancel()` on a deliberate press. */
+export function stopAlertSound(): void {
+  try {
+    player?.pause();
+  } catch (error) {
+    console.warn('Could not stop the alert sound', error);
   }
+}
+
+function play(file: string | null): void {
+  if (file === null) return;
 
   const clip = CLIPS[file];
   if (clip === undefined) return;

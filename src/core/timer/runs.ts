@@ -171,6 +171,10 @@ export function planRunAlerts(runs: readonly TimerRun[], now: number, limit: num
   if (!Number.isFinite(limit) || limit <= 0) return [];
 
   const queues = runningRuns(runs)
+    // A run set to in-app alerts is skipped entirely rather than given a small share: the
+    // whole point is that it costs nothing, and its boundaries are announced by the engine
+    // while the app is open.
+    .filter((run) => run.state.config.notifyWhenClosed)
     .map((run) => {
       const schedule = buildSchedule(run.state.config);
       return planAlerts({
