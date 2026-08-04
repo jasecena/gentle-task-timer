@@ -35,7 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: VARIANT_NAME[VARIANT],
   slug: 'gentle-task-timer',
   // CI derives the marketing version from the release tag (v1.2.3 -> 1.2.3).
-  version: process.env.APP_VERSION || '0.4.2',
+  version: process.env.APP_VERSION || '0.4.3',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'gentletasktimer',
