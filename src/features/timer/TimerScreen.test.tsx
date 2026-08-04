@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import * as Audio from 'expo-audio';
 import * as Notifications from 'expo-notifications';
 import { Vibration } from 'react-native';
 
@@ -32,6 +33,7 @@ beforeEach(async () => {
   // after it. Granted is the default; the denial tests opt out for themselves.
   notifications.getPermissionsAsync.mockResolvedValue(GRANTED);
   notifications.requestPermissionsAsync.mockResolvedValue(GRANTED);
+  (Audio as unknown as { __reset: () => void }).__reset();
   // The screen persists its timers, and the AsyncStorage stand-in keeps its
   // contents for the whole file — so without this, the second test starts with
   // the first test's timers already running.
@@ -398,6 +400,80 @@ describe('the rest-end alert', () => {
     expect(screen.getByLabelText('Rest: None')).toBeOnTheScreen();
 
     expect(screen.queryByLabelText('Alert when rest ends')).not.toBeOnTheScreen();
+  });
+});
+
+describe('in-app alert mode', () => {
+  /**
+   * The point of the mode: a run that costs nothing of iOS's 64 pending notifications. The
+   * price is absolute rather than partial — nothing arrives once the app is closed — so the
+   * thing worth asserting is that the slots really are zero, not merely fewer.
+   */
+  it('schedules nothing at all', async () => {
+    await renderScreen();
+    await openSettings(A);
+
+    await fireEvent(screen.getByLabelText('Alerts with the app closed'), 'valueChange', false);
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await act(async () => {});
+
+    expect(notifications.__pending('run')).toHaveLength(0);
+    expect(notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it('still buzzes and plays at a boundary, since nothing else will', async () => {
+    const vibrate = jest.spyOn(Vibration, 'vibrate').mockImplementation(() => {});
+    const audio = Audio as unknown as { __playCount: () => number };
+    await renderScreen();
+    await openSettings(A);
+
+    await fireEvent(screen.getByLabelText('Alerts with the app closed'), 'valueChange', false);
+    // A bundled voice, so there is something to play.
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
+    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Chime
+    (Audio as unknown as { __reset: () => void }).__reset(); // discard the picker's preview
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    vibrate.mockClear();
+    await advance(120_000);
+
+    expect(vibrate).toHaveBeenCalled();
+    expect(audio.__playCount()).toBeGreaterThan(0);
+  });
+
+  it('does not play in-app when a notification will do it', async () => {
+    // The default mode. Playing here as well would double up with the banner's sound.
+    const audio = Audio as unknown as { __playCount: () => number };
+    await renderScreen();
+    await openSettings(A);
+
+    await fireEvent.press(screen.getByLabelText('Increase Sound'));
+    await fireEvent.press(screen.getByLabelText('Increase Sound')); // Chime
+
+    // Stepping the picker previews the voice, which is a play and not the one under test.
+    (Audio as unknown as { __reset: () => void }).__reset();
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await advance(120_000);
+
+    expect(audio.__playCount()).toBe(0);
+  });
+
+  it('leaves other timers scheduling normally', async () => {
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText('Add timer'));
+
+    await openSettings(B);
+    await fireEvent(screen.getByLabelText('Alerts with the app closed'), 'valueChange', false);
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await fireEvent.press(screen.getByLabelText(`Start ${B}`));
+    await act(async () => {});
+
+    // Only the first timer's three boundaries; the second costs nothing.
+    const pending = notifications.__pending('run');
+    expect(pending).toHaveLength(3);
+    expect(pending.every((r) => r.content.title === A)).toBe(true);
   });
 });
 

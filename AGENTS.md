@@ -70,6 +70,18 @@ call `cancelAllScheduledNotificationsAsync`. The two features share one pool of
 pending notifications, so a blunt cancel means starting a timer silently wipes a
 standing schedule — a bug that surfaces days later as an alert that never came.
 
+**In-app alert mode costs zero slots, and that is absolute.** `notifyWhenClosed: false` on a
+timer or a schedule schedules _nothing_ — the run is filtered out of `planRunAlerts`,
+`planReminders` returns `[]`, and `countReminderSlots` returns 0, which is what lets a
+frequency the budget could never afford pass validation. The price is not "less reliable", it
+is "does not happen once the app is closed". Never describe it as a degradation.
+
+**In-app mode is the only reason the app plays audio.** In the normal mode the sound rides on
+the notification and iOS plays it, which works with the app closed. `playAlertSound` is called
+only when `notifyWhenClosed` is false, or the banner and the app would sound together.
+`src/services/soundPreview.ts` is the one file importing `expo-audio` — a second would mean two
+players competing for the session.
+
 **iOS holds 64 pending local notifications app-wide.** The split lives in
 `core/alerts/budget.ts`: a schedule may claim 48 and one-off notes 8, both
 refused at the editor rather than truncated; running timers share whatever is

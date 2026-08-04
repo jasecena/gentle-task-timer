@@ -5,7 +5,8 @@ import {
   normalizeReminderConfig,
   validateReminderConfig,
 } from '../config';
-import { countReminderSlots, planReminders, reminderTimesOfDay } from '../plan';
+import { countReminderSlots, planReminders, reminderTimesBetween, reminderTimesOfDay } from '../plan';
+import { MINUTES_PER_DAY, weekMinute } from '../../clock';
 import type { ReminderConfig } from '../types';
 
 const WEEKDAYS_9_TO_5: ReminderConfig = {
@@ -17,6 +18,7 @@ const WEEKDAYS_9_TO_5: ReminderConfig = {
   vibrationMs: 3_000,
   soundId: 'default',
   ringMs: 1_500,
+  notifyWhenClosed: true,
 };
 
 describe('reminderTimesOfDay', () => {
@@ -204,5 +206,89 @@ describe('normalizeReminderConfig', () => {
 
   it('sorts and deduplicates days', () => {
     expect(normalizeReminderConfig({ days: [5, 1, 5, 0] }).days).toEqual([0, 1, 5]);
+  });
+});
+
+describe('in-app mode', () => {
+  const inApp = { ...WEEKDAYS_9_TO_5, notifyWhenClosed: false };
+
+  /**
+   * The whole point: a frequency the 64-slot budget could never afford, for nothing. "Every
+   * five minutes, nine to five, weekdays" is 480 alerts a week and costs no slots, because
+   * none are scheduled.
+   */
+  it('costs no notification slots at all', () => {
+    expect(countReminderSlots(inApp)).toBe(0);
+    expect(countReminderSlots({ ...inApp, intervalMs: 5 * 60_000 })).toBe(0);
+  });
+
+  it('hands iOS nothing, however it is armed', () => {
+    expect(planReminders({ ...inApp, enabled: true })).toEqual([]);
+  });
+
+  it('lets a schedule the budget would refuse become valid', () => {
+    // Every 5 minutes, 9-5, five days: 485 a week, hopeless as notifications.
+    const dense = { ...inApp, intervalMs: 5 * 60_000 };
+
+    expect(validateReminderConfig({ ...dense, notifyWhenClosed: true }).some((i) => i.field === 'budget')).toBe(true);
+    expect(validateReminderConfig(dense)).toEqual([]);
+  });
+
+  it('still knows its times — they are what the in-app ticker walks', () => {
+    expect(reminderTimesOfDay(inApp)).toHaveLength(9);
+  });
+});
+
+describe('reminderTimesBetween', () => {
+  const monday = (minute: number) => weekMinute(1, minute);
+
+  /**
+   * Same principle as the timer's `phasesEndingBetween`, and for the same reason: a tick that
+   * arrives late must still report the times it stepped over, or a reminder is lost. On a
+   * phone every tick arrives late.
+   */
+  it('reports a time the window stepped over', () => {
+    const crossed = reminderTimesBetween(WEEKDAYS_9_TO_5, monday(9 * 60 - 1), monday(9 * 60 + 1));
+
+    expect(crossed).toEqual([monday(9 * 60)]);
+  });
+
+  it('reports every time in a long window, in order', () => {
+    // A five-hour gap — the app was open but the tick was starved.
+    const crossed = reminderTimesBetween(WEEKDAYS_9_TO_5, monday(9 * 60), monday(14 * 60));
+
+    expect(crossed).toEqual([10, 11, 12, 13, 14].map((h) => monday(h * 60)));
+  });
+
+  it('does not report a time the window opens exactly on', () => {
+    // Open at the bottom, closed at the top: consecutive windows fire each time once.
+    const first = reminderTimesBetween(WEEKDAYS_9_TO_5, monday(8 * 60), monday(9 * 60));
+    const second = reminderTimesBetween(WEEKDAYS_9_TO_5, monday(9 * 60), monday(10 * 60));
+
+    expect(first).toContain(monday(9 * 60));
+    expect(second).not.toContain(monday(9 * 60));
+    expect(second).toEqual([monday(10 * 60)]);
+  });
+
+  it('reports nothing outside the window or on an unscheduled day', () => {
+    expect(reminderTimesBetween(WEEKDAYS_9_TO_5, monday(18 * 60), monday(20 * 60))).toEqual([]);
+    // Sunday is not in Mon-Fri.
+    expect(reminderTimesBetween(WEEKDAYS_9_TO_5, weekMinute(0, 9 * 60 - 1), weekMinute(0, 12 * 60))).toEqual([]);
+  });
+
+  it('crosses midnight and the end of the week without a special case', () => {
+    const allDay = { ...WEEKDAYS_9_TO_5, days: [0, 1, 2, 3, 4, 5, 6] as const, startMinute: 0, endMinute: 0 };
+    // Saturday 23:59 -> Sunday 00:01 wraps the grid.
+    const crossed = reminderTimesBetween(
+      { ...allDay, days: [...allDay.days] },
+      weekMinute(6, MINUTES_PER_DAY - 1),
+      weekMinute(0, 1),
+    );
+
+    expect(crossed).toEqual([weekMinute(0, 0)]);
+  });
+
+  it('reports nothing while the schedule is off', () => {
+    expect(reminderTimesBetween({ ...WEEKDAYS_9_TO_5, enabled: false }, monday(0), monday(1439))).toEqual([]);
   });
 });

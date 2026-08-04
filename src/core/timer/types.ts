@@ -72,6 +72,19 @@ export interface TimerConfig {
    * timer that can be configured to never tell you anything is not a timer.
    */
   readonly restEndAlert: boolean;
+  /**
+   * Whether this hands alerts to iOS so they arrive with the app closed.
+   *
+   * On by default. Turning it off costs **zero** of iOS's 64 pending notifications: nothing is
+   * scheduled at all, and every alert comes from the app itself while it is open.
+   *
+   * That is the trade, stated plainly. In-app alerts have no frequency limit and no budget —
+   * every five minutes all day is free — but they exist only while the app is in the
+   * foreground. Leave the app, or let the screen lock without the keep-awake holding it, and
+   * JavaScript stops and nothing fires. There is no partial credit here: it is not "less
+   * reliable", it is "does not happen".
+   */
+  readonly notifyWhenClosed: boolean;
 }
 
 /**

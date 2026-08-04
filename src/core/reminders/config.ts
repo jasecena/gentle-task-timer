@@ -27,6 +27,7 @@ export const DEFAULT_REMINDER_CONFIG: ReminderConfig = {
   vibrationMs: 3_000,
   soundId: DEFAULT_SOUND_ID,
   ringMs: RING_LIMITS.SHORT_MS,
+  notifyWhenClosed: true,
 };
 
 export interface ReminderIssue {
@@ -119,5 +120,6 @@ export function normalizeReminderConfig(config: Partial<ReminderConfig> | null |
     vibrationMs: normalizeVibrationMs(source.vibrationMs ?? DEFAULT_REMINDER_CONFIG.vibrationMs),
     soundId: normalizeSoundId(source.soundId),
     ringMs: normalizeRingMs(source.ringMs ?? DEFAULT_REMINDER_CONFIG.ringMs),
+    notifyWhenClosed: source.notifyWhenClosed !== false,
   };
 }

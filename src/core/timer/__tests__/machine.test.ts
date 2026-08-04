@@ -13,6 +13,7 @@ const config = (overrides: Partial<TimerConfig> = {}): TimerConfig => ({
   soundId: 'default',
   ringMs: 1_500,
   restEndAlert: true,
+  notifyWhenClosed: true,
   ...overrides,
 });
 

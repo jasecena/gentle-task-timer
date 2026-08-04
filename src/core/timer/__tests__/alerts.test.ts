@@ -15,6 +15,7 @@ const POMODORO: TimerConfig = {
   // These tests are about boundary placement and copy, so they opt in to the rest-end
   // alert; its default-off behaviour has tests of its own below.
   restEndAlert: true,
+  notifyWhenClosed: true,
 };
 
 function plan(config: TimerConfig, elapsedMs = 0, limit?: number) {

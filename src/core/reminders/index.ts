@@ -18,7 +18,7 @@ export {
 } from './config';
 export type { ReminderIssue } from './config';
 
-export { countReminderSlots, planReminders, reminderTimesOfDay } from './plan';
+export { countReminderSlots, planReminders, reminderTimesBetween, reminderTimesOfDay } from './plan';
 
 export {
   clampMinute,

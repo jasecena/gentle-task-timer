@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Vibration } from 'react-native';
 
 import {
   countReminderSlots,
@@ -10,10 +11,13 @@ import {
   type ReminderConfig,
   type ReminderIssue,
 } from '@/core/reminders';
+import { buildVibrationPattern } from '@/core/alerts';
+import { playAlertSound } from '@/services/soundPreview';
 import { readJson, STORAGE_KEYS, writeJson } from '@/services/storage';
 
 import { requestAlertPermission, type AlertPermission } from '@/services/notifications';
 import { cancelReminders, scheduleReminders } from '../alerts';
+import { useReminderTicker } from './useReminderTicker';
 
 export interface UseReminders {
   config: ReminderConfig;
@@ -71,6 +75,18 @@ export function useReminders(): UseReminders {
       live = false;
     };
   }, []);
+
+  /**
+   * In-app mode has no notification to make a noise, so the app makes it. Does nothing in the
+   * normal mode, where the ticker is inert and iOS is delivering the alerts.
+   */
+  const announce = useCallback(() => {
+    const pattern = buildVibrationPattern(config.vibrationMs);
+    if (pattern.length > 0) Vibration.vibrate(pattern);
+    playAlertSound(config.soundId, config.ringMs);
+  }, [config.vibrationMs, config.soundId, config.ringMs]);
+
+  useReminderTicker(config, announce);
 
   const persist = useCallback((next: ReminderConfig) => {
     touched.current = true;
