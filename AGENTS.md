@@ -23,7 +23,7 @@ trigger repaints.
 not off a per-frame "did it hit zero?" check, which misses every boundary that
 passes while the app is suspended.
 
-**Run `npm run verify` before finishing.** Typecheck, lint, format check and 338
+**Run `npm run verify` before finishing.** Typecheck, lint, format check and 363
 tests, in well under a minute.
 
 **Refs may not be read during render.** `react-hooks/refs` is an error, not a

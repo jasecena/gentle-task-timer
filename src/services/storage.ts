@@ -31,6 +31,8 @@ export const STORAGE_KEYS = {
    * the app is supposed to be trustworthy.
    */
   legacyTimerRun: `${PREFIX}timer-run`,
+  /** Screen-level preferences for the timers tab, which belong to no single run. */
+  timerPrefs: `${PREFIX}timer-prefs`,
   reminders: `${PREFIX}reminders`,
   oneoffs: `${PREFIX}oneoffs`,
 } as const;

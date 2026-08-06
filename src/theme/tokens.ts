@@ -37,6 +37,8 @@ export const radius = {
   sm: 8,
   md: 12,
   lg: 20,
+  /** For surfaces large enough that `lg` reads as a square corner — the floating run control. */
+  xl: 36,
   pill: 999,
 } as const;
 
