@@ -7,10 +7,13 @@ import { DEFAULT_CONFIG, MAX_RUNS, type Phase, type TimerConfig, type TimerRun }
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 import { SwipeToDelete } from '@/components/SwipeToDelete';
+import { ToggleRow } from '@/components/ToggleRow';
 
+import { RunPill, RUN_PILL_SIZE } from './components/RunPill';
 import { TimerCard } from './components/TimerCard';
+import { useFloatingControl } from './hooks/useFloatingControl';
 import { useKeepAwakeWhile } from './hooks/useKeepAwakeWhile';
-import { useTimers } from './hooks/useTimers';
+import { useTimers, type TimerRunView } from './hooks/useTimers';
 import { useTimersAlerts } from './hooks/useTimersAlerts';
 
 const INITIAL_CONFIG = {
@@ -94,55 +97,111 @@ export function TimerScreen({ reminderSlots = 0, oneoffSlots = 0 }: Props) {
 
   const running = timers.views.filter((entry) => entry.view.status === 'running').length;
 
+  const floating = useFloatingControl();
+  const pinned = floating.enabled ? pickPinned(timers.views) : null;
+
   return (
-    <ScrollView contentContainerStyle={styles.content} bounces={false}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Timers</Text>
-        <Text style={styles.summary}>
-          {timers.runs.length} of {MAX_RUNS} · {running} running
-        </Text>
-      </View>
+    <View style={styles.root}>
+      <ScrollView contentContainerStyle={styles.content} bounces={false}>
+        <View style={[styles.header, pinned && styles.headerInset]}>
+          <Text style={styles.title}>Timers</Text>
+          <Text style={styles.summary}>
+            {timers.runs.length} of {MAX_RUNS} · {running} running
+          </Text>
+        </View>
+
+        {/*
+          Swipe is a shortcut, not the interface: the same delete lives inside
+          each card's settings, because a swipe is undiscoverable and invisible to
+          a screen reader.
+        */}
+        {timers.views.map((entry) => (
+          <SwipeToDelete key={entry.id} enabled={timers.canRemove} onDelete={() => timers.remove(entry.id)}>
+            <TimerCard
+              config={entry.config}
+              view={entry.view}
+              canRemove={timers.canRemove}
+              onToggle={() => toggle(entry.id)}
+              onReset={() => reset(entry.id)}
+              onRemove={() => timers.remove(entry.id)}
+              onChange={(config: TimerConfig) => timers.setConfig(entry.id, config)}
+            />
+          </SwipeToDelete>
+        ))}
+
+        <Pressable
+          onPress={timers.add}
+          disabled={!timers.canAdd}
+          accessibilityRole="button"
+          accessibilityLabel="Add timer"
+          accessibilityState={{ disabled: !timers.canAdd }}
+          style={({ pressed }) => [
+            styles.add,
+            !timers.canAdd && styles.disabled,
+            pressed && timers.canAdd && styles.pressed,
+          ]}
+        >
+          <Text style={styles.addText}>{timers.canAdd ? '+ Add timer' : `${MAX_RUNS} timers is the limit`}</Text>
+        </Pressable>
+
+        {/*
+          At the foot of the list rather than the top, because the control it
+          governs covers the top-left corner — a switch underneath it would be
+          unreachable exactly when you wanted to turn it off.
+        */}
+        <ToggleRow
+          label="Floating control"
+          hint="Pins the running timer's countdown and pause button over the list."
+          value={floating.enabled}
+          onChange={floating.set}
+        />
+
+        {alertPermission === 'denied' ? (
+          <Text style={styles.notice}>
+            Notifications are off, so phase alerts only reach you while the app is open. Turn them on in Settings.
+          </Text>
+        ) : null}
+      </ScrollView>
 
       {/*
-        Swipe is a shortcut, not the interface: the same delete lives inside
-        each card's settings, because a swipe is undiscoverable and invisible to
-        a screen reader.
+        Last child, so it paints over the list without needing a zIndex, and
+        outside the ScrollView, so it stays put while the list moves under it.
       */}
-      {timers.views.map((entry) => (
-        <SwipeToDelete key={entry.id} enabled={timers.canRemove} onDelete={() => timers.remove(entry.id)}>
-          <TimerCard
-            config={entry.config}
-            view={entry.view}
-            canRemove={timers.canRemove}
-            onToggle={() => toggle(entry.id)}
-            onReset={() => reset(entry.id)}
-            onRemove={() => timers.remove(entry.id)}
-            onChange={(config: TimerConfig) => timers.setConfig(entry.id, config)}
+      {pinned ? (
+        <View style={styles.pin}>
+          <RunPill
+            name={pinned.config.name}
+            status={pinned.view.status === 'running' ? 'running' : 'paused'}
+            remainingMs={pinned.view.phaseRemainingMs}
+            phaseKind={pinned.view.phase?.kind ?? null}
+            onToggle={() => toggle(pinned.id)}
           />
-        </SwipeToDelete>
-      ))}
-
-      <Pressable
-        onPress={timers.add}
-        disabled={!timers.canAdd}
-        accessibilityRole="button"
-        accessibilityLabel="Add timer"
-        accessibilityState={{ disabled: !timers.canAdd }}
-        style={({ pressed }) => [
-          styles.add,
-          !timers.canAdd && styles.disabled,
-          pressed && timers.canAdd && styles.pressed,
-        ]}
-      >
-        <Text style={styles.addText}>{timers.canAdd ? '+ Add timer' : `${MAX_RUNS} timers is the limit`}</Text>
-      </Pressable>
-
-      {alertPermission === 'denied' ? (
-        <Text style={styles.notice}>
-          Notifications are off, so phase alerts only reach you while the app is open. Turn them on in Settings.
-        </Text>
+        </View>
       ) : null}
-    </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * The one run the floating control belongs to.
+ *
+ * Running wins, in list order — with several going, the first one is the one the
+ * box follows. A *paused* run is the fallback rather than an equal, and it has
+ * to be there: pausing from the box would otherwise make the box disappear,
+ * taking with it the only thing that could resume the run.
+ *
+ * Derived on each render rather than remembered, so there is no stale id to
+ * reconcile when a run is deleted, restored or reset. The one visible seam is
+ * that pausing the only running timer while an older paused one sits above it in
+ * the list hands the box to the older one; picking up the wrong *paused* timer
+ * is a cheap kind of wrong, and it costs no state to be right the rest of the
+ * time.
+ */
+function pickPinned(views: TimerRunView[]): TimerRunView | null {
+  return (
+    views.find((entry) => entry.view.status === 'running') ??
+    views.find((entry) => entry.view.status === 'paused') ??
+    null
   );
 }
 
@@ -166,6 +225,9 @@ function vibrate(durationMs: number, rhythm: 'single' | 'double' | 'triple') {
 }
 
 const styles = StyleSheet.create({
+  // Holds the list and the floating control as siblings; the control is not
+  // part of the scrolling content.
+  root: { flex: 1 },
   content: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
@@ -173,6 +235,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   header: { alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs },
+  // The control overlaps the top-left corner, so the heading centres itself in
+  // what is left rather than sitting underneath it. Only the heading moves —
+  // the cards keep their position, so nothing jumps when a run starts.
+  headerInset: { paddingLeft: RUN_PILL_SIZE },
+  pin: { position: 'absolute', top: spacing.sm, left: spacing.md },
   title: { ...typography.title, color: colors.textPrimary },
   summary: { ...typography.caption, color: colors.textMuted },
   add: {

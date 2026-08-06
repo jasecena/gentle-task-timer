@@ -60,6 +60,23 @@ appId: ${APP_ID}
 - tapOn: 'Pause Gentle Task Timer'
 - assertVisible: 'Resume Gentle Task Timer'
 
+# --- The floating control drives the same run ----------------------------
+#
+# Pinned over the top-left of the list so the run in progress stays pausable
+# from anywhere in it, which is the one thing about it that a simulator can
+# check and Jest cannot: it is a sibling of the ScrollView, and a mistake there
+# is a box that scrolls away or one that swallows taps meant for a card.
+#
+# Its label leads with "Floating control:" rather than "Pause <name>" on
+# purpose — the latter would be a substring of the card button's label above
+# and every tap here would become a coin toss. See RunPill.tsx.
+#
+# The trailing `.*` stands in for the countdown, which is different every run.
+- tapOn: 'Floating control: Gentle Task Timer, resume.*'
+- assertVisible: 'Pause Gentle Task Timer'
+- tapOn: 'Pause Gentle Task Timer'
+- assertVisible: 'Resume Gentle Task Timer'
+
 # --- Reset returns to the initial state ----------------------------------
 - tapOn: 'Reset Gentle Task Timer'
 - assertVisible: 'READY'

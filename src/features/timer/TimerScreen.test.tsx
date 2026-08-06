@@ -330,6 +330,152 @@ describe('several timers at once', () => {
   });
 });
 
+describe('the floating run control', () => {
+  /**
+   * The box exists because the timers are a scrolling list: the one counting
+   * down is off screen by the time you have a few, and the point is that its
+   * countdown and its pause button are not.
+   *
+   * Its label carries the time, which is also what keeps it distinguishable
+   * from the card's own `Pause <name>` button — every assertion here would be
+   * ambiguous otherwise.
+   */
+  const pinned = () => screen.queryAllByLabelText(/^Floating control:/);
+
+  it('is absent until something is running', async () => {
+    await renderScreen();
+
+    expect(pinned()).toHaveLength(0);
+  });
+
+  it('appears on start, counting down the current phase', async () => {
+    await renderScreen();
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await advance(10_000);
+
+    expect(screen.getByLabelText(`Floating control: ${A}, pause, 01:50 left`)).toBeOnTheScreen();
+  });
+
+  it('pauses and resumes the run it is pinned to', async () => {
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await advance(30_000);
+
+    await fireEvent.press(screen.getByLabelText(`Floating control: ${A}, pause, 01:30 left`));
+    await advance(60_000); // a minute passes while paused
+
+    // Still there, and still showing where the run stopped — vanishing on pause
+    // would take away the only thing that could resume it.
+    expect(screen.getByLabelText(`Floating control: ${A}, resume, 01:30 left`)).toBeOnTheScreen();
+    expect(screen.getByLabelText(`Resume ${A}`)).toBeOnTheScreen(); // the card agrees
+
+    await fireEvent.press(screen.getByLabelText(`Floating control: ${A}, resume, 01:30 left`));
+    await advance(30_000);
+
+    expect(screen.getByLabelText(`Floating control: ${A}, pause, 01:00 left`)).toBeOnTheScreen();
+  });
+
+  it('follows the rest phase, and the run to its end', async () => {
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+
+    await advance(120_000);
+    expect(screen.getByLabelText(`Floating control: ${A}, pause, 00:30 left`)).toBeOnTheScreen();
+
+    await advance(300_000); // through to completion
+    expect(pinned()).toHaveLength(0);
+  });
+
+  it('goes away on reset', async () => {
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await advance(45_000);
+
+    await fireEvent.press(screen.getByLabelText(`Reset ${A}`));
+
+    expect(pinned()).toHaveLength(0);
+  });
+
+  it('shows one box for the first running timer, not one per timer', async () => {
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText('Add timer'));
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await advance(30_000);
+    await fireEvent.press(screen.getByLabelText(`Start ${B}`));
+    await advance(30_000);
+
+    expect(pinned()).toHaveLength(1);
+    expect(screen.getByLabelText(`Floating control: ${A}, pause, 01:00 left`)).toBeOnTheScreen();
+  });
+
+  it('moves to the next running timer when the first one stops', async () => {
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText('Add timer'));
+
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await fireEvent.press(screen.getByLabelText(`Start ${B}`));
+    await advance(30_000);
+    await fireEvent.press(screen.getByLabelText(`Reset ${A}`));
+
+    expect(pinned()).toHaveLength(1);
+    expect(screen.getByLabelText(`Floating control: ${B}, pause, 01:30 left`)).toBeOnTheScreen();
+  });
+
+  it('is there for a run restored from a previous session', async () => {
+    const first = await renderScreen();
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await first.unmount();
+
+    jest.setSystemTime(new Date('2026-01-01T00:01:15Z'));
+    await renderScreen();
+
+    expect(screen.getByLabelText(`Floating control: ${A}, pause, 00:45 left`)).toBeOnTheScreen();
+  });
+
+  it('can be switched off, and stays off across a restart', async () => {
+    const first = await renderScreen();
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    expect(pinned()).toHaveLength(1);
+
+    await fireEvent(screen.getByLabelText('Floating control'), 'valueChange', false);
+    expect(pinned()).toHaveLength(0);
+
+    // A preference, not a session's whim: reopening the app should not put back
+    // the thing you just turned off.
+    await first.unmount();
+    await renderScreen();
+
+    expect(screen.getByLabelText(`Pause ${A}`)).toBeOnTheScreen(); // still running
+    expect(pinned()).toHaveLength(0);
+  });
+
+  it('comes back when the switch goes on again', async () => {
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await fireEvent(screen.getByLabelText('Floating control'), 'valueChange', false);
+    await advance(30_000);
+
+    await fireEvent(screen.getByLabelText('Floating control'), 'valueChange', true);
+
+    // Showing the run where it is now, not where it was when the box went away.
+    expect(screen.getByLabelText(`Floating control: ${A}, pause, 01:30 left`)).toBeOnTheScreen();
+  });
+
+  it('stops a buzz in progress, like every other control', async () => {
+    const cancel = jest.spyOn(Vibration, 'cancel').mockImplementation(() => {});
+    await renderScreen();
+    await fireEvent.press(screen.getByLabelText(`Start ${A}`));
+    await advance(120_000); // a boundary: the phone is buzzing
+
+    cancel.mockClear();
+    await fireEvent.press(screen.getByLabelText(`Floating control: ${A}, pause, 00:30 left`));
+
+    expect(cancel).toHaveBeenCalled();
+  });
+});
+
 describe('the rest-end alert', () => {
   /**
    * The reported behaviour: a buzz when rest finished, which is wanted for sets and reps and

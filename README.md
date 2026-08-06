@@ -57,6 +57,9 @@ v0.4.3 is the current release. Scope:
       there too — a swipe is invisible to VoiceOver)
 - [x] Named timer, work duration (30s minimum), repeat count, optional rest
 - [x] Start / pause / resume / reset, per timer
+- [x] A floating pause button and countdown for the run in progress, pinned over
+      the list so it stays reachable once you have scrolled past its card —
+      switchable off at the foot of the tab
 - [x] Per-phase and whole-run progress
 - [x] Optional alert when a rest ends — off by default, on for sets and reps
 - [x] Runs survive force-quitting the app, and come back where they should be
@@ -117,7 +120,7 @@ machine.
 
 ```bash
 npm run verify     # typecheck + lint + format check + tests. Run before pushing.
-npm test           # 352 tests, ~7s
+npm test           # 363 tests, ~7s
 npm run test:watch
 ```
 
